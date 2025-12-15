@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Task, TaskStatus, TaskPriority } from "@entities/task";
-import { TaskSection } from "@widgets";
-import { User, Coffee } from "lucide-react";
+import { TaskSection, AppLayout } from "@widgets";
 import { openTaskWindow } from "@shared/lib/openTaskWindow";
 
 export const MainPage = () => {
@@ -98,37 +97,29 @@ export const MainPage = () => {
   };
 
   return (
-    <div className="h-screen bg-[#1C1A23] flex flex-col">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <button className="text-gray-400 hover:text-white transition-colors">
-          <User className="w-5 h-5" />
-        </button>
-        <button className="text-gray-400 hover:text-white transition-colors">
-          <Coffee className="w-5 h-5" />
-        </button>
-      </div>
+    <AppLayout>
+      <div className="h-full overflow-y-auto">
+        <div className="p-6 space-y-8">
+          {/* 할일 섹션 */}
+          <TaskSection
+            title="할일"
+            count={inboxTasks.length}
+            tasks={inboxTasks}
+            selectedTaskId={selectedTaskId}
+            onTaskSelect={handleTaskSelect}
+            showInput={true}
+          />
 
-      {/* 콘텐츠 */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-6">
-        <TaskSection
-          title="할일"
-          count={6}
-          tasks={inboxTasks}
-          selectedTaskId={selectedTaskId}
-          onTaskSelect={handleTaskSelect}
-          showInput={true}
-        />
-
-        <TaskSection
-          title="완료"
-          count={3}
-          tasks={completedTasks}
-          selectedTaskId={undefined}
-          onTaskSelect={undefined}
-        />
+          {/* 완료 섹션 */}
+          <TaskSection
+            title="완료"
+            count={completedTasks.length}
+            tasks={completedTasks}
+            selectedTaskId={undefined}
+            onTaskSelect={undefined}
+          />
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 };
-

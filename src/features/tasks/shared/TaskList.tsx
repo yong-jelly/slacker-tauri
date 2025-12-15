@@ -9,7 +9,7 @@ interface TaskListProps {
 
 export const TaskList = ({ tasks, selectedTaskId, onTaskSelect }: TaskListProps) => {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col bg-[#1C1B23] rounded-xl overflow-hidden">
       {tasks.map((task) => (
         <TaskItem
           key={task.id}

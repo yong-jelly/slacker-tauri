@@ -9,6 +9,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Slacker",
@@ -16,15 +17,15 @@
         "height": 800,
         "resizable": true,
         "fullscreen": false,
-        "transparent": false,
-        "decorations": true
+        "transparent": true,
+        "decorations": false
       }
     ],
     "security": {
       "csp": null
     },
     "withGlobalTauri": false
-},
+  },
 "bundle": {
   "active": true,
   "targets": "all",

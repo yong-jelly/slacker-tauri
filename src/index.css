@@ -1,16 +1,79 @@
 @import "tailwindcss";
 
+:root {
+  /* Orbstack 스타일 색상 */
+  --bg-primary: #232623;
+  --bg-secondary: #1a1d1a;
+  --bg-tertiary: #2a2d2a;
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --text-primary: #e5e5e5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --accent-green: #3d5a3d;
+  --accent-green-light: #4ade80;
+}
+
+* {
+  margin: 0;
+  /* padding: 0; */
+  box-sizing: border-box;
+}
+
+html,
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+    "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+    "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
 }
 
 #root {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 선택 영역 스타일 */
+::selection {
+  background: var(--accent-green);
+  color: white;
+}
+
+/* 타이틀바 드래그 영역 */
+.titlebar {
+  -webkit-app-region: drag;
+}
+
+.titlebar-buttons,
+.titlebar-buttons * {
+  -webkit-app-region: no-drag;
 }
 
