@@ -1,10 +1,11 @@
 import { motion } from "motion/react";
 import { Clock, MoreHorizontal } from "lucide-react";
-import { formatTime, formatMinutes } from "../lib/timeFormat";
+import { formatTimeMs, formatMinutes } from "../lib/timeFormat";
 import type { UrgencyLevel } from "../lib/urgency";
 
 interface TaskTimerSectionProps {
-  remainingTime: number;
+  /** 남은 시간 (밀리초 단위) */
+  remainingTimeMs: number;
   progress: number;
   expectedDurationMinutes: number;
   urgencyLevel: UrgencyLevel;
@@ -14,7 +15,7 @@ interface TaskTimerSectionProps {
 }
 
 export const TaskTimerSection = ({
-  remainingTime,
+  remainingTimeMs,
   progress,
   expectedDurationMinutes,
   urgencyLevel,
@@ -50,7 +51,7 @@ export const TaskTimerSection = ({
           }
           transition={{ duration: 0.5, repeat: Infinity }}
         >
-          {formatTime(remainingTime)}
+          {formatTimeMs(remainingTimeMs)}
         </motion.div>
 
         <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">

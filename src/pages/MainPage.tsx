@@ -1,10 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Task, TaskStatus, TaskPriority, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 import { TaskSection, AppLayout } from "@widgets";
 import { openTaskWindow } from "@shared/lib/openTaskWindow";
+import { requestNotificationPermission, sendTaskCompletedNotification } from "@shared/lib/notification";
 
 export const MainPage = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>();
+
+  // 앱 시작 시 알림 권한 요청
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   // Mock 데이터 - 다양한 상태와 진행률, 히스토리 포함
   const [tasks, setTasks] = useState<Task[]>([
@@ -50,17 +56,17 @@ export const MainPage = () => {
         { id: "note1", title: "마이그레이션 계획", content: "1. 백업\n2. 스키마 변경\n3. 데이터 이전\n4. 검증", createdAt: new Date() },
       ],
     },
-    // IN_PROGRESS - 진행 중
+    // INBOX - 일부 진행됨 (이전에 작업했다가 멈춘 상태)
     {
       id: "10",
       title: "API 연동 작업",
       priority: TaskPriority.HIGH,
-      status: TaskStatus.IN_PROGRESS,
+      status: TaskStatus.INBOX,
       totalTimeSpent: 8,
       expectedDuration: 20,
       createdAt: new Date(),
       targetDate: new Date(),
-      lastRunAt: new Date(),
+      lastRunAt: new Date(Date.now() - 3600000), // 1시간 전
       tags: ["API"],
       memos: [
         { id: "m2", content: "인증 토큰 갱신 로직 확인 필요", createdAt: new Date(Date.now() - 3600000) },
@@ -68,14 +74,14 @@ export const MainPage = () => {
       ],
       runHistory: [
         { id: "r1", startedAt: new Date(Date.now() - 7200000), endedAt: new Date(Date.now() - 5400000), duration: 1800, endType: "paused" },
-        { id: "r2", startedAt: new Date(Date.now() - 3600000), duration: 600, endType: "paused" },
+        { id: "r2", startedAt: new Date(Date.now() - 3600000), endedAt: new Date(Date.now() - 3000000), duration: 600, endType: "paused" },
       ],
     },
     {
       id: "14",
       title: "UI 컴포넌트 리팩토링",
       priority: TaskPriority.MEDIUM,
-      status: TaskStatus.IN_PROGRESS,
+      status: TaskStatus.INBOX,
       totalTimeSpent: 15,
       expectedDuration: 30,
       createdAt: new Date(),
@@ -231,16 +237,21 @@ export const MainPage = () => {
   // 상태 변경 핸들러
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              status: newStatus,
-              lastPausedAt: newStatus === TaskStatus.PAUSED ? new Date() : t.lastPausedAt,
-              completedAt: newStatus === TaskStatus.COMPLETED ? new Date() : t.completedAt,
-            }
-          : t
-      )
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        
+        // 완료 상태로 변경 시 알림 전송
+        if (newStatus === TaskStatus.COMPLETED && t.status !== TaskStatus.COMPLETED) {
+          sendTaskCompletedNotification(t.title, t.expectedDuration);
+        }
+        
+        return {
+          ...t,
+          status: newStatus,
+          lastPausedAt: newStatus === TaskStatus.PAUSED ? new Date() : t.lastPausedAt,
+          completedAt: newStatus === TaskStatus.COMPLETED ? new Date() : t.completedAt,
+        };
+      })
     );
   };
 

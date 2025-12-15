@@ -2,11 +2,20 @@
  * 시간 관련 포맷팅 유틸리티 함수들
  */
 
-/** 초 단위를 MM:SS 형식으로 변환 */
+/** 초 단위를 M:SS 형식으로 변환 (0:00 ~ 59:59) */
 export const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+/** 밀리초 단위를 M:SS.cc 형식으로 변환 (100분의 1초 포함) */
+export const formatTimeMs = (ms: number): string => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  const centiseconds = Math.floor((ms % 1000) / 10);
+  return `${mins}:${secs.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
 };
 
 /** 분 단위를 한글 형식으로 변환 (예: 5분, 1시간 30분) */

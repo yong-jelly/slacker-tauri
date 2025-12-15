@@ -1,17 +1,24 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { TaskStatus, TimeExtensionHistory } from "@entities/task";
 import { getUrgencyLevel, getUrgencyColors, type UrgencyLevel, type UrgencyColors } from "../lib/urgency";
+import { updateTrayTitle, formatTrayTime, clearTrayTitle } from "@shared/lib/tray";
+import { sendTimerEndedNotification } from "@shared/lib/notification";
 
 interface UseTaskTimerProps {
   expectedDuration: number;
   defaultDuration?: number;
   isInProgress: boolean;
+  taskTitle?: string;
   onStatusChange?: (status: TaskStatus) => void;
   onExtendTime?: (extension: TimeExtensionHistory) => void;
+  onTimerEnd?: () => void;
 }
 
 interface UseTaskTimerReturn {
-  remainingTime: number;
+  /** 남은 시간 (밀리초 단위) */
+  remainingTimeMs: number;
+  /** 남은 시간 (초 단위, 트레이/일시정지 표시용) */
+  remainingTimeSeconds: number;
   isRunning: boolean;
   progress: number;
   completedProgress: number;
@@ -27,18 +34,25 @@ export const useTaskTimer = ({
   expectedDuration,
   defaultDuration,
   isInProgress,
+  taskTitle,
   onStatusChange,
   onExtendTime,
+  onTimerEnd,
 }: UseTaskTimerProps): UseTaskTimerReturn => {
-  const expectedDurationSeconds = expectedDuration * 60;
-  const timerDuration = defaultDuration ?? expectedDurationSeconds;
+  const expectedDurationMs = expectedDuration * 60 * 1000;
+  const timerDurationMs = defaultDuration ? defaultDuration * 1000 : expectedDurationMs;
 
-  const [remainingTime, setRemainingTime] = useState(timerDuration);
+  const [remainingTimeMs, setRemainingTimeMs] = useState(timerDurationMs);
   const [isRunning, setIsRunning] = useState(isInProgress);
+  const timerEndedRef = useRef(false);
+  const lastTrayUpdateRef = useRef(0);
+
+  // 초 단위 (트레이/일시정지 표시용)
+  const remainingTimeSeconds = Math.ceil(remainingTimeMs / 1000);
 
   const progress = useMemo(
-    () => remainingTime / timerDuration,
-    [remainingTime, timerDuration]
+    () => remainingTimeMs / timerDurationMs,
+    [remainingTimeMs, timerDurationMs]
   );
 
   const completedProgress = useMemo(() => 1 - progress, [progress]);
@@ -46,15 +60,43 @@ export const useTaskTimer = ({
   const urgencyLevel = useMemo(() => getUrgencyLevel(progress), [progress]);
   const urgencyColors = useMemo(() => getUrgencyColors(urgencyLevel), [urgencyLevel]);
 
+  // 트레이 타이틀 업데이트 (초 단위로만 업데이트하여 성능 최적화)
   useEffect(() => {
-    if (!isRunning || remainingTime <= 0) return;
+    const currentSeconds = Math.ceil(remainingTimeMs / 1000);
+    if (isRunning && remainingTimeMs > 0 && currentSeconds !== lastTrayUpdateRef.current) {
+      lastTrayUpdateRef.current = currentSeconds;
+      updateTrayTitle(formatTrayTime(currentSeconds, taskTitle));
+    } else if (!isRunning) {
+      clearTrayTitle();
+    }
+  }, [remainingTimeMs, isRunning]);
+
+  // 타이머 종료 시 알림
+  useEffect(() => {
+    if (remainingTimeMs === 0 && isRunning && !timerEndedRef.current) {
+      timerEndedRef.current = true;
+      if (taskTitle) {
+        sendTimerEndedNotification(taskTitle);
+      }
+      onTimerEnd?.();
+      clearTrayTitle();
+    }
+    // 타이머가 다시 시작되면 플래그 초기화
+    if (remainingTimeMs > 0) {
+      timerEndedRef.current = false;
+    }
+  }, [remainingTimeMs, isRunning, taskTitle, onTimerEnd]);
+
+  // 10ms 간격으로 타이머 업데이트 (100분의 1초)
+  useEffect(() => {
+    if (!isRunning || remainingTimeMs <= 0) return;
 
     const timer = setInterval(() => {
-      setRemainingTime((prev) => Math.max(0, prev - 1));
-    }, 1000);
+      setRemainingTimeMs((prev) => Math.max(0, prev - 10));
+    }, 10);
 
     return () => clearInterval(timer);
-  }, [isRunning, remainingTime]);
+  }, [isRunning, remainingTimeMs]);
 
   useEffect(() => {
     setIsRunning(isInProgress);
@@ -64,12 +106,12 @@ export const useTaskTimer = ({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       setIsRunning(true);
-      if (remainingTime === 0) {
-        setRemainingTime(timerDuration);
+      if (remainingTimeMs === 0) {
+        setRemainingTimeMs(timerDurationMs);
       }
       onStatusChange?.(TaskStatus.IN_PROGRESS);
     },
-    [onStatusChange, remainingTime, timerDuration]
+    [onStatusChange, remainingTimeMs, timerDurationMs]
   );
 
   const handlePause = useCallback(
@@ -92,17 +134,18 @@ export const useTaskTimer = ({
         createdAt: new Date(),
       };
       onExtendTime?.(extension);
-      setRemainingTime((prev) => prev + minutes * 60);
+      setRemainingTimeMs((prev) => prev + minutes * 60 * 1000);
     },
     [expectedDuration, onExtendTime]
   );
 
   const extendRemainingTime = useCallback((minutes: number) => {
-    setRemainingTime((prev) => prev + minutes * 60);
+    setRemainingTimeMs((prev) => prev + minutes * 60 * 1000);
   }, []);
 
   return {
-    remainingTime,
+    remainingTimeMs,
+    remainingTimeSeconds,
     isRunning,
     progress,
     completedProgress,

@@ -87,8 +87,8 @@ export const TaskDetailExpanded = ({
                   </span>
                 )}
               </div>
-              {/* 내일로/오늘로 버튼 */}
-              {targetDateText !== "오늘" && (
+              {/* 내일로/오늘로 버튼: 지연 시 오늘로, 오늘이면 내일로, 내일이면 숨김 */}
+              {(isDelayed || targetDateText !== "내일") && (
                 <button
                   onClick={isDelayed ? onPostponeToToday : onPostponeToTomorrow}
                   className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-600/30 transition-colors ml-1"

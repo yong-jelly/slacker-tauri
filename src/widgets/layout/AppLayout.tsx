@@ -195,7 +195,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           <div data-tauri-drag-region className="flex-1 h-full" />
 
           {/* 새 할일 추가 버튼 */}
-          <div className="titlebar-buttons flex items-center pr-4">
+          <div className="titlebar-buttons flex items-center gap-2 pr-4">
             <AddButton
               label="추가하기"
               onClick={() => console.log("Add new task")}

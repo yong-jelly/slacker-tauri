@@ -6,7 +6,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useCallback, useMemo } from "react";
 
-import { formatMinutes, formatTargetDate, getDelayDays } from "./lib/timeFormat";
+import { formatMinutes, formatTargetDate, getDelayDays, formatRelativeTime } from "./lib/timeFormat";
 import { useTaskTimer } from "./hooks/useTaskTimer";
 import { CircularProgress } from "./ui/CircularProgress";
 import { TaskTimerSection } from "./ui/TaskTimerSection";
@@ -38,7 +38,8 @@ export const TaskItem = ({
 
   // 타이머 훅
   const {
-    remainingTime,
+    remainingTimeMs,
+    remainingTimeSeconds,
     progress,
     completedProgress,
     urgencyLevel,
@@ -51,6 +52,7 @@ export const TaskItem = ({
     expectedDuration: task.expectedDuration ?? 5,
     defaultDuration,
     isInProgress,
+    taskTitle: task.title,
     onStatusChange,
     onExtendTime,
   });
@@ -494,7 +496,7 @@ export const TaskItem = ({
         <AnimatePresence>
           {isInProgress && (
             <TaskTimerSection
-              remainingTime={remainingTime}
+              remainingTimeMs={remainingTimeMs}
               progress={progress}
               expectedDurationMinutes={task.expectedDuration ?? 5}
               urgencyLevel={urgencyLevel}
@@ -502,6 +504,27 @@ export const TaskItem = ({
               onOpenTimeModal={(e) => handleOpenModal(e, "time")}
               isHovered={isHovered}
             />
+          )}
+        </AnimatePresence>
+
+        {/* 일시정지 상태일 때 정보 표시 */}
+        <AnimatePresence>
+          {isPaused && !isDetailExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
+              className="pl-10 pr-2 -mt-2 text-xs text-gray-500"
+            >
+              {task.lastRunAt && (
+                <>
+                  <span>{formatRelativeTime(new Date(task.lastRunAt))}</span>
+                  <span className="mx-1.5 text-gray-600">•</span>
+                </>
+              )}
+              <span>{Math.ceil(remainingTimeSeconds / 60)}분 남음</span>
+            </motion.div>
           )}
         </AnimatePresence>
 

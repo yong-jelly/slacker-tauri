@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, useParams } from "react-router-dom";
 import { MainPage } from "@pages/MainPage";
 import { TaskDetailPage } from "@pages/TaskDetailPage";
+import { TaskWidgetPage } from "@pages/TaskWidgetPage";
 import { Task, TaskStatus, TaskPriority } from "@entities/task";
 
 // Mock 데이터 (실제로는 상태 관리나 API에서 가져와야 함)
@@ -67,6 +68,7 @@ export const App = () => {
           path="/task/:id"
           element={<TaskDetailPageWrapper getTaskById={getTaskById} />}
         />
+        <Route path="/widget" element={<TaskWidgetPage />} />
       </Routes>
     </HashRouter>
   );
