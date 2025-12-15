@@ -26,7 +26,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   // Mock 사용자 데이터
   const mockUser = {
     name: "용택 권",
-    email: "yongtaek@example.com",
+    email: "@yongtaek",
   };
 
   // 사이드바 상태 변경 시 메인 헤더 버튼 표시 딜레이 처리

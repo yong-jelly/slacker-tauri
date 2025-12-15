@@ -3,11 +3,13 @@ import {
   Inbox,
   CheckCircle2,
   Calendar,
+  CalendarDays,
   Star,
   Archive,
   Settings,
   ChevronRight,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 
 interface MenuItem {
@@ -67,6 +69,18 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
           label: "오늘",
           icon: <Calendar className="w-4 h-4" />,
           count: 4,
+        },
+        {
+          id: "tomorrow",
+          label: "내일",
+          icon: <CalendarDays className="w-4 h-4" />,
+          count: 2,
+        },
+        {
+          id: "overdue",
+          label: "지연됨",
+          icon: <AlertTriangle className="w-4 h-4" />,
+          count: 1,
         },
         {
           id: "archive",
