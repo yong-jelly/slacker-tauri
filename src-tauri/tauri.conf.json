@@ -13,8 +13,9 @@
     "windows": [
       {
         "title": "Slacker",
-        "width": 1200,
+        "width": 700,
         "height": 800,
+        "minWidth": 700,
         "resizable": true,
         "fullscreen": false,
         "transparent": true,

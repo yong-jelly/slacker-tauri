@@ -1,4 +1,4 @@
-import { Task, TaskStatus } from "@entities/task";
+import { Task } from "@entities/task";
 import { TaskList } from "@features/tasks/shared";
 import { Input } from "@shared/ui";
 import { Plus } from "lucide-react";
@@ -36,9 +36,9 @@ export const TaskSection = ({
           <Input
             type="text"
             placeholder={placeholder}
-            className="pr-12 bg-[#27252E] border-0 rounded-xl text-base"
+            className="pr-12 bg-[#2B2D31] border-0 rounded-xl text-base"
           />
-          <button className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors">
+          <button className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors">
             <Plus className="w-6 h-6" />
           </button>
         </div>

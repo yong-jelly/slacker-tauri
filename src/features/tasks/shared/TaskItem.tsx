@@ -15,7 +15,7 @@ export const TaskItem = ({ task, isSelected = false, onClick }: TaskItemProps) =
       onClick={onClick}
       className={`
         flex items-center gap-4 px-6 h-[50px] cursor-pointer transition-colors
-        ${isSelected ? "bg-orange-500 text-white rounded-xl" : "text-gray-200 hover:bg-[#27262E]"}
+        ${isSelected ? "bg-blue-600 text-white rounded-xl" : "text-gray-200 hover:bg-[#35373C]"}
       `}
     >
       <div className="flex-shrink-0">
