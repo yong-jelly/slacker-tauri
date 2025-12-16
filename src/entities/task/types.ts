@@ -54,6 +54,21 @@ export interface TimeExtensionHistory {
   reason?: string;
 }
 
+/** 액션 히스토리 항목 (모든 상태 변경 기록) */
+export interface TaskActionHistory {
+  id: string;
+  /** 액션 타입: CREATED, STARTED, PAUSED, COMPLETED, ARCHIVED, RESTORED */
+  actionType: "CREATED" | "STARTED" | "PAUSED" | "COMPLETED" | "ARCHIVED" | "RESTORED" | "STATUS_CHANGED";
+  /** 이전 상태 */
+  previousStatus?: string;
+  /** 새 상태 */
+  newStatus?: string;
+  /** 추가 메타데이터 (JSON) */
+  metadata?: string;
+  /** 액션 시점 */
+  createdAt: Date;
+}
+
 export interface Task {
   id: string;
   slackMessageId?: string;
@@ -82,6 +97,8 @@ export interface Task {
   runHistory?: TaskRunHistory[];
   /** 시간 추가 히스토리 */
   timeExtensions?: TimeExtensionHistory[];
+  /** 액션 히스토리 (모든 상태 변경 기록) */
+  actionHistory?: TaskActionHistory[];
   /** 중요 표시 여부 */
   isImportant?: boolean;
 }

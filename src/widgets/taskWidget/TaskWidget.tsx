@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Clock, X, Minimize2, Maximize2, Settings } from "lucide-react";
 import { Task } from "@entities/task";
-import { formatTime, formatMinutes } from "@features/tasks/shared/lib/timeFormat";
+import { formatTimeMs, formatMinutes } from "@features/tasks/shared/lib/timeFormat";
 import { useTaskTimer } from "@features/tasks/shared/hooks/useTaskTimer";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { UrgencyLevel } from "@features/tasks/shared/lib/urgency";
+import { PhysicalSize } from "@tauri-apps/api/dpi";
 import { loadWidgetSettings, saveWidgetMinimized, saveWidgetOpacity, saveWidgetPosition } from "@shared/lib/widgetStorage";
 
 interface TaskWidgetProps {
@@ -25,7 +25,7 @@ export const TaskWidget = ({ task }: TaskWidgetProps) => {
   }, []);
 
   const {
-    remainingTime,
+    remainingTimeMs,
     progress,
     urgencyLevel,
   } = useTaskTimer({
@@ -47,9 +47,9 @@ export const TaskWidget = ({ task }: TaskWidgetProps) => {
     // 위젯 창 크기 조절
     const window = getCurrentWebviewWindow();
     if (newIsMinimized) {
-      await window.setSize({ type: "Physical", width: 160, height: 50 });
+      await window.setSize(new PhysicalSize(160, 50));
     } else {
-      await window.setSize({ type: "Physical", width: 320, height: 140 });
+      await window.setSize(new PhysicalSize(320, 140));
     }
   };
 
@@ -113,7 +113,7 @@ export const TaskWidget = ({ task }: TaskWidgetProps) => {
           animate={urgencyLevel === "critical" ? { scale: [1, 1.05, 1] } : {}}
           transition={{ duration: 0.5, repeat: Infinity }}
         >
-          {formatTime(remainingTime)}
+          {formatTimeMs(remainingTimeMs)}
         </motion.div>
         
         <button
@@ -216,7 +216,7 @@ export const TaskWidget = ({ task }: TaskWidgetProps) => {
           }
           transition={{ duration: 0.5, repeat: Infinity }}
         >
-          {formatTime(remainingTime)}
+          {formatTimeMs(remainingTimeMs)}
         </motion.div>
 
         <div className="flex-1 h-2 bg-black/30 rounded-full overflow-hidden">

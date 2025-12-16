@@ -1,393 +1,250 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Task, TaskStatus, TaskPriority, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
-import { TaskSection, AppLayout } from "@widgets";
+import { TaskSection, AppLayout } from "@widgets/index";
 import { openTaskWindow } from "@shared/lib/openTaskWindow";
 import { requestNotificationPermission, sendTaskCompletedNotification } from "@shared/lib/notification";
+import { useTasks, useSidebarCounts } from "@shared/hooks";
+import { type SidebarMenuId } from "@widgets/layout/Sidebar";
+
+// 오늘/내일 날짜 비교용 헬퍼
+const isSameDay = (date1: Date, date2: Date) => {
+  return date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate();
+};
+
+const isBeforeDay = (date: Date, reference: Date) => {
+  const d1 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const d2 = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
+  return d1 < d2;
+};
+
+// 메뉴별 태스크 필터 함수
+const filterTasksByMenu = (tasks: Task[], menuId: SidebarMenuId): Task[] => {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  switch (menuId) {
+    case "inbox":
+      return tasks.filter((t) => t.status === TaskStatus.INBOX);
+    case "completed":
+      return tasks.filter((t) => t.status === TaskStatus.COMPLETED);
+    case "starred":
+      return tasks.filter((t) => t.isImportant && t.status !== TaskStatus.COMPLETED && t.status !== TaskStatus.ARCHIVED);
+    case "today":
+      return tasks.filter((t) => {
+        if (!t.targetDate || t.status === TaskStatus.COMPLETED || t.status === TaskStatus.ARCHIVED) return false;
+        return isSameDay(new Date(t.targetDate), today);
+      });
+    case "tomorrow":
+      return tasks.filter((t) => {
+        if (!t.targetDate || t.status === TaskStatus.COMPLETED || t.status === TaskStatus.ARCHIVED) return false;
+        return isSameDay(new Date(t.targetDate), tomorrow);
+      });
+    case "overdue":
+      return tasks.filter((t) => {
+        if (!t.targetDate || t.status === TaskStatus.COMPLETED || t.status === TaskStatus.ARCHIVED) return false;
+        return isBeforeDay(new Date(t.targetDate), today);
+      });
+    case "archive":
+      return tasks.filter((t) => t.status === TaskStatus.ARCHIVED);
+    default:
+      return tasks;
+  }
+};
 
 export const MainPage = () => {
+  const navigate = useNavigate();
+  const {
+    tasks,
+    loading,
+    error,
+    refresh,
+    createTask,
+    updateTask,
+    deleteTask,
+    addMemo,
+    addNote,
+    updateNote,
+    addTag,
+    removeTag,
+    extendTime,
+  } = useTasks();
+
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>();
   const [isAddingTask, setIsAddingTask] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // URL 쿼리 파라미터에서 초기 메뉴 읽기
+  const menuFromUrl = searchParams.get("menu") as SidebarMenuId | null;
+  const [activeMenuId, setActiveMenuId] = useState<SidebarMenuId>(
+    menuFromUrl && ["inbox", "completed", "starred", "today", "tomorrow", "overdue", "archive"].includes(menuFromUrl)
+      ? menuFromUrl
+      : "inbox"
+  );
+
+  // URL 파라미터 변경 시 메뉴 업데이트
+  useEffect(() => {
+    if (menuFromUrl && menuFromUrl !== activeMenuId && ["inbox", "completed", "starred", "today", "tomorrow", "overdue", "archive"].includes(menuFromUrl)) {
+      setActiveMenuId(menuFromUrl);
+      // URL 파라미터 정리 (한 번만 사용)
+      setSearchParams({}, { replace: true });
+    }
+  }, [menuFromUrl, activeMenuId, setSearchParams]);
+
+  // 사이드바 카운트 데이터
+  const { counts: sidebarCounts, refresh: refreshCounts } = useSidebarCounts();
+
+  // 태스크 변경 시 카운트 리프레시
+  useEffect(() => {
+    refreshCounts();
+  }, [tasks, refreshCounts]);
 
   // 앱 시작 시 알림 권한 요청
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
-  // Mock 데이터 - 다양한 상태와 진행률, 히스토리 포함
-  const [tasks, setTasks] = useState<Task[]>([
-    // INBOX - 시작 전
-    {
-      id: "1",
-      title: "피드백 기능 추가",
-      priority: TaskPriority.HIGH,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 0,
-      expectedDuration: 15,
-      createdAt: new Date(),
-      targetDate: new Date(),
-      tags: ["프론트엔드", "기능"],
-      isImportant: true,
-      memos: [
-        { id: "m1", content: "디자인 확인 후 진행", createdAt: new Date(Date.now() - 7200000) },
-      ],
-    },
-    {
-      id: "2",
-      title: "타이머 추가",
-      priority: TaskPriority.MEDIUM,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 0,
-      expectedDuration: 10,
-      createdAt: new Date(),
-      targetDate: new Date(),
-      tags: ["UI"],
-    },
-    {
-      id: "6",
-      title: "데이터베이스 마이그레이션",
-      priority: TaskPriority.HIGH,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 0,
-      expectedDuration: 60,
-      createdAt: new Date(),
-      targetDate: new Date(Date.now() + 86400000), // 내일
-      tags: ["백엔드", "DB"],
-      isImportant: true,
-      notes: [
-        { id: "note1", title: "마이그레이션 계획", content: "1. 백업\n2. 스키마 변경\n3. 데이터 이전\n4. 검증", createdAt: new Date() },
-      ],
-    },
-    // INBOX - 일부 진행됨 (이전에 작업했다가 멈춘 상태)
-    {
-      id: "10",
-      title: "API 연동 작업",
-      priority: TaskPriority.HIGH,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 8,
-      expectedDuration: 20,
-      createdAt: new Date(),
-      targetDate: new Date(),
-      lastRunAt: new Date(Date.now() - 3600000), // 1시간 전
-      tags: ["API"],
-      memos: [
-        { id: "m2", content: "인증 토큰 갱신 로직 확인 필요", createdAt: new Date(Date.now() - 3600000) },
-        { id: "m3", content: "에러 핸들링 추가됨", createdAt: new Date(Date.now() - 1800000) },
-      ],
-      runHistory: [
-        { id: "r1", startedAt: new Date(Date.now() - 7200000), endedAt: new Date(Date.now() - 5400000), duration: 1800, endType: "paused" },
-        { id: "r2", startedAt: new Date(Date.now() - 3600000), endedAt: new Date(Date.now() - 3000000), duration: 600, endType: "paused" },
-      ],
-    },
-    {
-      id: "14",
-      title: "UI 컴포넌트 리팩토링",
-      priority: TaskPriority.MEDIUM,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 15,
-      expectedDuration: 30,
-      createdAt: new Date(),
-      targetDate: new Date(),
-      lastRunAt: new Date(Date.now() - 600000), // 10분 전
-      tags: ["리팩토링", "컴포넌트"],
-      runHistory: [
-        { id: "r3", startedAt: new Date(Date.now() - 86400000), endedAt: new Date(Date.now() - 84600000), duration: 1800, endType: "timeout" },
-      ],
-    },
-    // INBOX - 일부 진행됨 (이전에 작업했다가 멈춘 상태)
-    {
-      id: "7",
-      title: "API 문서 작성",
-      priority: TaskPriority.MEDIUM,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 12,
-      expectedDuration: 30,
-      createdAt: new Date(),
-      targetDate: new Date(),
-      lastRunAt: new Date(Date.now() - 86400000), // 어제
-      tags: ["문서"],
-      runHistory: [
-        { id: "r4", startedAt: new Date(Date.now() - 86400000), endedAt: new Date(Date.now() - 85680000), duration: 720, endType: "paused" },
-      ],
-    },
-    {
-      id: "8",
-      title: "성능 최적화",
-      priority: TaskPriority.LOW,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 5,
-      expectedDuration: 45,
-      createdAt: new Date(),
-      targetDate: new Date(Date.now() + 172800000), // 2일 후
-      tags: ["최적화"],
-    },
-    {
-      id: "9",
-      title: "테스트 코드 작성",
-      priority: TaskPriority.MEDIUM,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 0,
-      expectedDuration: 25,
-      createdAt: new Date(),
-      targetDate: new Date(Date.now() - 172800000), // 2일 전 (지연됨)
-      tags: ["테스트"],
-    },
-    // PAUSED - 일시정지됨
-    {
-      id: "11",
-      title: "Slack 연동 구현",
-      priority: TaskPriority.HIGH,
-      status: TaskStatus.PAUSED,
-      totalTimeSpent: 25,
-      expectedDuration: 40,
-      createdAt: new Date(),
-      lastPausedAt: new Date(),
-      lastRunAt: new Date(Date.now() - 1800000), // 30분 전
-      targetDate: new Date(),
-      tags: ["Slack", "연동"],
-      memos: [
-        { id: "m4", content: "OAuth 권한 확인 중", createdAt: new Date(Date.now() - 1800000) },
-      ],
-      notes: [
-        { id: "note2", title: "Slack API 연동 가이드", content: "1. OAuth 앱 생성\n2. 권한 설정\n3. 토큰 발급\n4. 메시지 전송 테스트", createdAt: new Date(Date.now() - 86400000) },
-      ],
-      runHistory: [
-        { id: "r5", startedAt: new Date(Date.now() - 3600000), endedAt: new Date(Date.now() - 1800000), duration: 1800, endType: "paused" },
-      ],
-      isImportant: true,
-    },
-    {
-      id: "12",
-      title: "사용자 인증 로직 수정",
-      priority: TaskPriority.MEDIUM,
-      status: TaskStatus.PAUSED,
-      totalTimeSpent: 15,
-      expectedDuration: 30,
-      createdAt: new Date(),
-      lastPausedAt: new Date(),
-      lastRunAt: new Date(Date.now() - 7200000), // 2시간 전
-      targetDate: new Date(),
-      tags: ["인증"],
-      runHistory: [
-        { id: "r6", startedAt: new Date(Date.now() - 10800000), endedAt: new Date(Date.now() - 7200000), duration: 3600, endType: "paused" },
-      ],
-    },
-    {
-      id: "13",
-      title: "대시보드 UI 개선",
-      priority: TaskPriority.LOW,
-      status: TaskStatus.PAUSED,
-      totalTimeSpent: 10,
-      expectedDuration: 20,
-      createdAt: new Date(),
-      lastPausedAt: new Date(),
-      lastRunAt: new Date(Date.now() - 86400000), // 어제
-      targetDate: new Date(Date.now() - 86400000), // 어제 (지연됨)
-      tags: ["UI", "대시보드"],
-      memos: [
-        { id: "m5", content: "그래프 컴포넌트 수정 필요", createdAt: new Date(Date.now() - 86400000) },
-      ],
-    },
-    // COMPLETED - 완료됨
-    {
-      id: "3",
-      title: "앱 홍보 이미지 제작",
-      priority: TaskPriority.MEDIUM,
-      status: TaskStatus.COMPLETED,
-      totalTimeSpent: 120,
-      expectedDuration: 60,
-      createdAt: new Date(),
-      completedAt: new Date(),
-      tags: ["디자인"],
-      runHistory: [
-        { id: "r7", startedAt: new Date(Date.now() - 172800000), endedAt: new Date(Date.now() - 165600000), duration: 7200, endType: "completed" },
-      ],
-    },
-    {
-      id: "4",
-      title: "CSS 레이아웃",
-      priority: TaskPriority.LOW,
-      status: TaskStatus.COMPLETED,
-      totalTimeSpent: 45,
-      expectedDuration: 30,
-      createdAt: new Date(),
-      completedAt: new Date(),
-      tags: ["CSS"],
-    },
-    {
-      id: "5",
-      title: "로그인 페이지 구현",
-      priority: TaskPriority.HIGH,
-      status: TaskStatus.COMPLETED,
-      totalTimeSpent: 90,
-      expectedDuration: 45,
-      createdAt: new Date(),
-      completedAt: new Date(),
-      tags: ["인증", "페이지"],
-      notes: [
-        { id: "note3", title: "구현 완료 노트", content: "- 로그인 폼 완성\n- 유효성 검사 추가\n- 에러 처리 완료", createdAt: new Date(Date.now() - 86400000) },
-      ],
-    },
-  ]);
+  // 메뉴별 필터링된 태스크
+  const filteredTasks = useMemo(() => {
+    return filterTasksByMenu(tasks, activeMenuId);
+  }, [tasks, activeMenuId]);
 
-  // 상태별 태스크 필터링 (4개 섹션)
-  const inProgressTasks = tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
-  const pausedTasks = tasks.filter((t) => t.status === TaskStatus.PAUSED);
-  const inboxTasks = tasks.filter((t) => t.status === TaskStatus.INBOX);
-  const completedTasks = tasks.filter((t) => t.status === TaskStatus.COMPLETED);
+  // 필터링된 태스크에서 상태별 분류 (4개 섹션)
+  const inProgressTasks = useMemo(() => {
+    // 진행중인 태스크는 항상 전체에서 필터링 (모든 화면에서 볼 수 있도록)
+    return tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
+  }, [tasks]);
+
+  const pausedTasks = useMemo(() => {
+    return tasks.filter((t) => t.status === TaskStatus.PAUSED);
+  }, [tasks]);
+
+  // 특정 메뉴에서는 섹션 구분 없이 표시
+  const showAllSections = activeMenuId === "inbox";
+  const isCompletedView = activeMenuId === "completed";
+  const isArchiveView = activeMenuId === "archive";
 
   // 상태 변경 핸들러
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
+  const handleStatusChange = useCallback(async (taskId: string, newStatus: TaskStatus) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
         
         // 완료 상태로 변경 시 알림 전송
-        if (newStatus === TaskStatus.COMPLETED && t.status !== TaskStatus.COMPLETED) {
-          sendTaskCompletedNotification(t.title, t.expectedDuration);
+    if (newStatus === TaskStatus.COMPLETED && task.status !== TaskStatus.COMPLETED) {
+      sendTaskCompletedNotification(task.title, task.expectedDuration);
         }
         
-        return {
-          ...t,
+    await updateTask({
+      id: taskId,
           status: newStatus,
-          lastPausedAt: newStatus === TaskStatus.PAUSED ? new Date() : t.lastPausedAt,
-          completedAt: newStatus === TaskStatus.COMPLETED ? new Date() : t.completedAt,
-        };
-      })
-    );
-  };
+      lastPausedAt: newStatus === TaskStatus.PAUSED ? new Date().toISOString() : undefined,
+      completedAt: newStatus === TaskStatus.COMPLETED ? new Date().toISOString() : undefined,
+    });
+  }, [tasks, updateTask]);
 
-  const handleTaskSelect = async (taskId: string) => {
+  const handleTaskSelect = useCallback(async (taskId: string) => {
     setSelectedTaskId(taskId);
     const task = tasks.find((t) => t.id === taskId);
     if (task) {
       await openTaskWindow(task);
     }
-  };
+  }, [tasks]);
 
   // 짧은 메모 추가 핸들러
-  const handleAddMemo = useCallback((taskId: string, memo: TaskMemo) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, memos: [...(t.memos || []), memo] }
-          : t
-      )
-    );
-  }, []);
+  const handleAddMemo = useCallback(async (taskId: string, memo: TaskMemo) => {
+    await addMemo(taskId, memo.content);
+  }, [addMemo]);
 
-  // 긴 노트 추가 핸들러
-  const handleAddNote = useCallback((taskId: string, note: TaskNote) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, notes: [...(t.notes || []), note] }
-          : t
-      )
-    );
-  }, []);
+  // 긴 노트 추가/수정 핸들러
+  const handleAddNote = useCallback(async (taskId: string, note: TaskNote) => {
+    // 기존 노트인지 확인 (task의 notes에서 해당 ID 찾기)
+    const task = tasks.find((t) => t.id === taskId);
+    const existingNote = task?.notes?.find((n) => n.id === note.id);
+    
+    if (existingNote) {
+      // 기존 노트 업데이트
+      await updateNote(note.id, note.content);
+    } else {
+      // 새 노트 추가
+      await addNote(taskId, note.title, note.content);
+    }
+  }, [tasks, addNote, updateNote]);
 
   // 태그 추가 핸들러
-  const handleAddTag = useCallback((taskId: string, tag: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId && !t.tags?.includes(tag)
-          ? { ...t, tags: [...(t.tags || []), tag] }
-          : t
-      )
-    );
-  }, []);
+  const handleAddTag = useCallback(async (taskId: string, tag: string) => {
+    await addTag(taskId, tag);
+  }, [addTag]);
 
   // 태그 제거 핸들러
-  const handleRemoveTag = useCallback((taskId: string, tag: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, tags: t.tags?.filter((tg) => tg !== tag) }
-          : t
-      )
-    );
-  }, []);
+  const handleRemoveTag = useCallback(async (taskId: string, tag: string) => {
+    await removeTag(taskId, tag);
+  }, [removeTag]);
 
   // 중요 표시 토글 핸들러
-  const handleToggleImportant = useCallback((taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, isImportant: !t.isImportant }
-          : t
-      )
-    );
-  }, []);
+  const handleToggleImportant = useCallback(async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) {
+      await updateTask({
+        id: taskId,
+        isImportant: !task.isImportant,
+      });
+    }
+  }, [tasks, updateTask]);
 
   // 삭제 핸들러
-  const handleDelete = useCallback((taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-  }, []);
+  const handleDelete = useCallback(async (taskId: string) => {
+    await deleteTask(taskId);
+  }, [deleteTask]);
 
   // 목표일 변경 핸들러
-  const handleTargetDateChange = useCallback((taskId: string, date: Date) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, targetDate: date }
-          : t
-      )
-    );
-  }, []);
+  const handleTargetDateChange = useCallback(async (taskId: string, date: Date) => {
+    await updateTask({
+      id: taskId,
+      targetDate: date.toISOString(),
+    });
+  }, [updateTask]);
 
   // 보관함으로 이동 핸들러
-  const handleArchive = useCallback((taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, status: TaskStatus.ARCHIVED }
-          : t
-      )
-    );
-  }, []);
+  const handleArchive = useCallback(async (taskId: string) => {
+    await updateTask({
+      id: taskId,
+      status: TaskStatus.ARCHIVED,
+    });
+  }, [updateTask]);
 
   // 시간 추가 핸들러
-  const handleExtendTime = useCallback((taskId: string, extension: TimeExtensionHistory) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              expectedDuration: extension.newDuration,
-              timeExtensions: [...(t.timeExtensions || []), extension],
-            }
-          : t
-      )
-    );
-  }, []);
+  const handleExtendTime = useCallback(async (taskId: string, extension: TimeExtensionHistory) => {
+    await extendTime({
+      taskId,
+      addedMinutes: extension.addedMinutes,
+      previousDuration: extension.previousDuration,
+      newDuration: extension.newDuration,
+      reason: extension.reason,
+    });
+  }, [extendTime]);
 
   // 타이틀 변경 핸들러
-  const handleTitleChange = useCallback((taskId: string, title: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, title }
-          : t
-      )
-    );
-  }, []);
+  const handleTitleChange = useCallback(async (taskId: string, title: string) => {
+    await updateTask({
+      id: taskId,
+      title,
+    });
+  }, [updateTask]);
 
   // Task 추가 핸들러
-  const handleAddTask = useCallback((title: string, targetDate: Date, expectedDuration: number) => {
-    const newTask: Task = {
-      id: crypto.randomUUID(),
+  const handleAddTask = useCallback(async (title: string, targetDate: Date, expectedDuration: number) => {
+    await createTask({
       title,
-      priority: TaskPriority.MEDIUM,
-      status: TaskStatus.INBOX,
-      totalTimeSpent: 0,
+      targetDate: targetDate.toISOString(),
       expectedDuration,
-      createdAt: new Date(),
-      targetDate,
-    };
-    setTasks((prev) => [newTask, ...prev]);
+      priority: TaskPriority.MEDIUM,
+    });
     setIsAddingTask(false);
-  }, []);
+  }, [createTask]);
 
   // Task 추가 UI 열기/닫기
   const handleOpenAddTask = useCallback(() => {
@@ -402,14 +259,111 @@ export const MainPage = () => {
     setIsAddingTask(false);
   }, []);
 
+  // 진행중인 모든 태스크를 일시정지
+  const pauseAllInProgressTasks = useCallback(async () => {
+    const inProgressTasks = tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
+    for (const task of inProgressTasks) {
+      await updateTask({
+        id: task.id,
+        status: TaskStatus.PAUSED,
+        lastPausedAt: new Date().toISOString(),
+      });
+    }
+  }, [tasks, updateTask]);
+
+  // 사이드바 메뉴 선택 핸들러
+  const handleMenuSelect = useCallback(async (menuId: SidebarMenuId) => {
+    // 메뉴 이동 시 추가 UI 취소
+    if (isAddingTask) {
+      setIsAddingTask(false);
+    }
+
+    // 메뉴 이동 시 진행중인 태스크 일시정지
+    const hasInProgressTasks = tasks.some((t) => t.status === TaskStatus.IN_PROGRESS);
+    if (hasInProgressTasks && menuId !== activeMenuId) {
+      await pauseAllInProgressTasks();
+    }
+
+    if (menuId === "settings") {
+      navigate("/settings");
+    } else {
+      setActiveMenuId(menuId);
+    }
+  }, [navigate, isAddingTask, tasks, activeMenuId, pauseAllInProgressTasks]);
+
   // 현재 진행중인 Task (하나만 있다고 가정)
   const currentInProgressTask = inProgressTasks.length > 0 ? inProgressTasks[0] : null;
 
   // Widget 모드에서 Task 상태 변경 핸들러
-  const handleWidgetStatusChange = (status: TaskStatus) => {
+  const handleWidgetStatusChange = useCallback((status: TaskStatus) => {
     if (currentInProgressTask) {
       handleStatusChange(currentInProgressTask.id, status);
     }
+  }, [currentInProgressTask, handleStatusChange]);
+
+  // 로딩 중 표시
+  if (loading && tasks.length === 0) {
+    return (
+      <AppLayout
+        inProgressTask={null}
+        onTaskStatusChange={() => {}}
+        onAddTaskClick={() => {}}
+        onMenuSelect={handleMenuSelect}
+        activeMenuId={activeMenuId}
+        sidebarCounts={sidebarCounts}
+      >
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center gap-4">
+            <svg className="w-10 h-10 text-amber-500 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <p className="text-slate-400">데이터 로딩중...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // 에러 표시
+  if (error) {
+    return (
+      <AppLayout
+        inProgressTask={null}
+        onTaskStatusChange={() => {}}
+        onAddTaskClick={() => {}}
+        onMenuSelect={handleMenuSelect}
+        activeMenuId={activeMenuId}
+        sidebarCounts={sidebarCounts}
+      >
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center gap-4 p-6 bg-red-500/10 rounded-xl border border-red-500/30">
+            <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-red-400">{error}</p>
+            <button
+              onClick={() => refresh()}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // 메뉴 타이틀 매핑
+  const menuTitles: Record<SidebarMenuId, string> = {
+    inbox: "할일",
+    completed: "완료",
+    starred: "중요",
+    today: "오늘",
+    tomorrow: "내일",
+    overdue: "지연됨",
+    archive: "보관함",
+    settings: "설정",
   };
 
   return (
@@ -417,9 +371,15 @@ export const MainPage = () => {
       inProgressTask={currentInProgressTask}
       onTaskStatusChange={handleWidgetStatusChange}
       onAddTaskClick={handleOpenAddTask}
+      onMenuSelect={handleMenuSelect}
+      activeMenuId={activeMenuId}
+      sidebarCounts={sidebarCounts}
     >
       <div ref={scrollContainerRef} className="h-full overflow-y-auto">
         <div className="p-6 space-y-8">
+          {/* inbox 메뉴: 전체 섹션 표시 */}
+          {showAllSections && (
+            <>
           {/* 진행중 섹션 */}
           <TaskSection
             title="진행중"
@@ -465,8 +425,8 @@ export const MainPage = () => {
           {/* 할일 섹션 */}
           <TaskSection
             title="할일"
-            count={inboxTasks.length}
-            tasks={inboxTasks}
+                count={filteredTasks.length}
+                tasks={filteredTasks}
             selectedTaskId={selectedTaskId}
             onTaskSelect={handleTaskSelect}
             onStatusChange={handleStatusChange}
@@ -485,14 +445,17 @@ export const MainPage = () => {
             onCloseAddTask={handleCloseAddTask}
             sectionType="inbox"
           />
+            </>
+          )}
 
-          {/* 완료 섹션 */}
+          {/* 다른 메뉴: 필터링된 태스크만 표시 */}
+          {!showAllSections && (
           <TaskSection
-            title="완료"
-            count={completedTasks.length}
-            tasks={completedTasks}
-            selectedTaskId={undefined}
-            onTaskSelect={undefined}
+              title={menuTitles[activeMenuId]}
+              count={filteredTasks.length}
+              tasks={filteredTasks}
+              selectedTaskId={isCompletedView || isArchiveView ? undefined : selectedTaskId}
+              onTaskSelect={isCompletedView || isArchiveView ? undefined : handleTaskSelect}
             onStatusChange={handleStatusChange}
             onAddMemo={handleAddMemo}
             onAddNote={handleAddNote}
@@ -504,8 +467,53 @@ export const MainPage = () => {
             onArchive={handleArchive}
             onExtendTime={handleExtendTime}
             onTitleChange={handleTitleChange}
-            sectionType="completed"
-          />
+              showAddTaskForm={isAddingTask}
+              onAddTask={handleAddTask}
+              onCloseAddTask={handleCloseAddTask}
+              sectionType={isCompletedView ? "completed" : isArchiveView ? "completed" : "inbox"}
+            />
+          )}
+
+          {/* 빈 상태 */}
+          {filteredTasks.length === 0 && !loading && !showAllSections && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-20 h-20 mb-6 rounded-2xl bg-slate-800/50 flex items-center justify-center">
+                <svg className="w-10 h-10 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {menuTitles[activeMenuId]} 항목이 없습니다
+              </h3>
+              <p className="text-slate-400 mb-6">
+                {activeMenuId === "starred" && "중요 표시된 작업이 없습니다"}
+                {activeMenuId === "today" && "오늘 예정된 작업이 없습니다"}
+                {activeMenuId === "tomorrow" && "내일 예정된 작업이 없습니다"}
+                {activeMenuId === "overdue" && "지연된 작업이 없습니다 🎉"}
+                {activeMenuId === "completed" && "완료된 작업이 없습니다"}
+                {activeMenuId === "archive" && "보관된 작업이 없습니다"}
+              </p>
+            </div>
+          )}
+
+          {/* 전체 빈 상태 (inbox) */}
+          {/* {showAllSections && tasks.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-20 h-20 mb-6 rounded-2xl bg-slate-800/50 flex items-center justify-center">
+                <svg className="w-10 h-10 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">작업이 없습니다</h3>
+              <p className="text-slate-400 mb-6">첫 번째 작업을 추가해 보세요!</p>
+              <button
+                onClick={handleOpenAddTask}
+                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-medium rounded-xl transition-colors"
+              >
+                작업 추가하기
+              </button>
+            </div>
+          )} */}
         </div>
       </div>
     </AppLayout>

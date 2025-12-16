@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { TaskItem } from "./TaskItem";
-import { TaskStatus, TaskPriority, Task } from "@entities/task";
+import { TaskStatus, TaskPriority, Task, TaskNote } from "@entities/task";
 import { useState } from "react";
 
 /**
@@ -129,7 +129,7 @@ const mockInProgressTask: Task = {
   targetDate: new Date(),
   tags: ["API"],
   notes: [
-    { id: "n1", content: "인증 토큰 갱신 로직 확인 필요", createdAt: new Date(Date.now() - 3600000) },
+    { id: "n1", title: "토큰 관련", content: "인증 토큰 갱신 로직 확인 필요", createdAt: new Date(Date.now() - 3600000) },
   ],
 };
 
@@ -183,9 +183,9 @@ const mockTaskWithNotes: Task = {
   tags: ["프론트엔드", "API", "중요"],
   isImportant: true,
   notes: [
-    { id: "n1", content: "요구사항 정리 완료", createdAt: new Date(Date.now() - 7200000) },
-    { id: "n2", content: "디자인 팀과 미팅 예정", createdAt: new Date(Date.now() - 3600000) },
-    { id: "n3", content: "API 스펙 확인 필요", createdAt: new Date() },
+    { id: "n1", title: "요구사항", content: "요구사항 정리 완료", createdAt: new Date(Date.now() - 7200000) },
+    { id: "n2", title: "미팅", content: "디자인 팀과 미팅 예정", createdAt: new Date(Date.now() - 3600000) },
+    { id: "n3", title: "API", content: "API 스펙 확인 필요", createdAt: new Date() },
   ],
 };
 
@@ -525,7 +525,7 @@ export const UrgencyProgression: Story = {
 const ExpandedFeaturesDemo = () => {
   const [task, setTask] = useState<Task>(mockTaskWithNotes);
 
-  const handleAddNote = (note: { id: string; content: string; createdAt: Date }) => {
+  const handleAddNote = (note: TaskNote) => {
     setTask((prev) => ({
       ...prev,
       notes: [...(prev.notes || []), note],

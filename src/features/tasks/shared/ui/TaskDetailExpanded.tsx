@@ -3,7 +3,7 @@ import {
   Calendar, ArrowRight, Archive, Hash, Send, 
   MessageSquare, AlertTriangle
 } from "lucide-react";
-import { Task, TaskMemo, TimeExtensionHistory } from "@entities/task";
+import { Task, TaskMemo } from "@entities/task";
 import { formatRelativeTime } from "../lib/timeFormat";
 import type { ModalTabType } from "../types";
 
@@ -12,7 +12,6 @@ interface TaskDetailExpandedProps {
   targetDateText: string;
   delayDays: number;
   isDelayed: boolean;
-  expectedDurationText: string;
   latestMemo: TaskMemo | null;
   memoInput: string;
   tagInput: string;
@@ -32,7 +31,6 @@ export const TaskDetailExpanded = ({
   targetDateText,
   delayDays,
   isDelayed,
-  expectedDurationText,
   latestMemo,
   memoInput,
   tagInput,

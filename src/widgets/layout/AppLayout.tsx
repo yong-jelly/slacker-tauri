@@ -2,12 +2,16 @@ import { useState, useEffect, ReactNode, useCallback } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { PanelLeftClose, PanelLeft, LayoutGrid, Maximize2, Pause } from "lucide-react";
 import { motion } from "motion/react";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, type SidebarMenuId } from "./Sidebar";
 import { UserInfo } from "./UserInfo";
 import { AddButton } from "@shared/ui";
 import { Task, TaskStatus } from "@entities/task";
 import { formatTimeMs } from "@features/tasks/shared/lib/timeFormat";
 import { useTaskTimer } from "@features/tasks/shared/hooks/useTaskTimer";
+import { type SidebarCounts } from "@shared/hooks";
+
+// 태스크 목록 메뉴 ID 목록
+const TASK_LIST_MENU_IDS: SidebarMenuId[] = ["inbox", "completed", "starred", "today", "tomorrow", "overdue", "archive"];
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -17,6 +21,12 @@ interface AppLayoutProps {
   onTaskStatusChange?: (status: TaskStatus) => void;
   /** Task 추가 UI 열기 핸들러 */
   onAddTaskClick?: () => void;
+  /** 사이드바 메뉴 선택 핸들러 */
+  onMenuSelect?: (menuId: SidebarMenuId) => void;
+  /** 현재 선택된 메뉴 */
+  activeMenuId?: SidebarMenuId;
+  /** 사이드바 카운트 */
+  sidebarCounts?: SidebarCounts;
 }
 
 // Widget 모드 창 크기 (컴팩트)
@@ -36,7 +46,7 @@ const COLORS = {
 // 사이드바 애니메이션 시간 (ms)
 const SIDEBAR_ANIMATION_DURATION = 300;
 
-export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddTaskClick }: AppLayoutProps) => {
+export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddTaskClick, onMenuSelect, activeMenuId = "inbox", sidebarCounts }: AppLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showMainHeaderButtons, setShowMainHeaderButtons] = useState(false);
   const [isWidgetMode, setIsWidgetMode] = useState(false);
@@ -322,7 +332,12 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
 
           {/* 사이드바 네비게이션 */}
           <div className="flex-1 overflow-y-auto">
-            <Sidebar isOpen={isSidebarOpen} />
+            <Sidebar 
+              isOpen={isSidebarOpen} 
+              activeItemId={activeMenuId}
+              counts={sidebarCounts}
+              onItemSelect={onMenuSelect}
+            />
           </div>
 
           {/* 사용자 정보 */}
@@ -405,10 +420,13 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
                 <LayoutGrid className="w-4 h-4" />
               </button>
             )}
-            <AddButton
-              label="추가하기"
-              onClick={onAddTaskClick}
-            />
+            {/* 추가하기 버튼: 태스크 목록 메뉴일 때만 표시 */}
+            {TASK_LIST_MENU_IDS.includes(activeMenuId) && onAddTaskClick && (
+              <AddButton
+                label="추가하기"
+                onClick={onAddTaskClick}
+              />
+            )}
           </div>
         </div>
 

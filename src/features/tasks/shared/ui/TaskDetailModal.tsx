@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { X, MessageSquare, FileText, Timer, History } from "lucide-react";
-import { Task, TaskRunHistory, TimeExtensionHistory } from "@entities/task";
+import { Task, TaskRunHistory, TimeExtensionHistory, TaskActionHistory } from "@entities/task";
 import type { ModalTabType } from "../types";
 import { MemoTabContent } from "./tabs/MemoTabContent";
 import { NoteTabContent } from "./tabs/NoteTabContent";
@@ -13,6 +13,7 @@ export interface TaskDetailModalProps {
   isOpen: boolean;
   activeTab: ModalTabType;
   sortedHistory: TaskRunHistory[];
+  sortedActionHistory: TaskActionHistory[];
   sortedTimeExtensions: TimeExtensionHistory[];
   expectedDurationText: string;
   memoInput: string;
@@ -33,6 +34,7 @@ export const TaskDetailModal = ({
   isOpen,
   activeTab,
   sortedHistory,
+  sortedActionHistory,
   sortedTimeExtensions,
   expectedDurationText,
   memoInput,
@@ -53,7 +55,7 @@ export const TaskDetailModal = ({
     { key: "memo" as const, label: "메모", icon: MessageSquare, count: task.memos?.length },
     { key: "note" as const, label: "노트", icon: FileText, count: undefined },
     { key: "time" as const, label: "시간", icon: Timer, count: sortedTimeExtensions.length },
-    { key: "history" as const, label: "히스토리", icon: History, count: sortedHistory.length },
+    { key: "history" as const, label: "히스토리", icon: History, count: sortedActionHistory.length },
   ];
 
   return createPortal(
@@ -133,7 +135,10 @@ export const TaskDetailModal = ({
           )}
 
           {activeTab === "history" && (
-            <HistoryTabContent sortedHistory={sortedHistory} />
+            <HistoryTabContent 
+              sortedHistory={sortedHistory} 
+              sortedActionHistory={sortedActionHistory}
+            />
           )}
 
           {activeTab === "time" && (

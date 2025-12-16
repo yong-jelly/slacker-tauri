@@ -3,6 +3,10 @@ import { Task, TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@ent
 export interface TaskItemProps {
   task: Task;
   isSelected?: boolean;
+  /** 확장(펼침) 상태 여부 - TaskList에서 관리 */
+  isExpanded?: boolean;
+  /** 확장 상태 토글 핸들러 */
+  onToggleExpand?: () => void;
   /** 외부 창으로 상세 열기 핸들러 */
   onOpenDetail?: () => void;
   onStatusChange?: (status: TaskStatus) => void;

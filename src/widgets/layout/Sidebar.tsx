@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Inbox,
   CheckCircle2,
@@ -11,6 +11,7 @@ import {
   ChevronDown,
   AlertTriangle,
 } from "lucide-react";
+import { type SidebarCounts } from "@shared/hooks";
 
 interface MenuItem {
   id: string;
@@ -25,17 +26,21 @@ interface MenuCategory {
   items: MenuItem[];
 }
 
+export type SidebarMenuId = "inbox" | "completed" | "starred" | "today" | "tomorrow" | "overdue" | "archive" | "settings";
+
 interface SidebarProps {
   isOpen: boolean;
+  activeItemId?: SidebarMenuId;
+  counts?: SidebarCounts;
+  onItemSelect?: (itemId: SidebarMenuId) => void;
 }
 
-export const Sidebar = ({ isOpen }: SidebarProps) => {
+export const Sidebar = ({ isOpen, activeItemId = "inbox", counts, onItemSelect }: SidebarProps) => {
   const [openCategories, setOpenCategories] = useState<Set<string>>(
     new Set(["tasks", "views"])
   );
-  const [activeItemId, setActiveItemId] = useState("inbox");
 
-  const categories: MenuCategory[] = [
+  const categories: MenuCategory[] = useMemo(() => [
     {
       id: "tasks",
       label: "Tasks",
@@ -44,19 +49,19 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
           id: "inbox",
           label: "할일",
           icon: <Inbox className="w-4 h-4" />,
-          count: 6,
+          count: counts?.inbox,
         },
         {
           id: "completed",
           label: "완료",
           icon: <CheckCircle2 className="w-4 h-4" />,
-          count: 3,
+          count: counts?.completed,
         },
         {
           id: "starred",
           label: "중요",
           icon: <Star className="w-4 h-4" />,
-          count: 2,
+          count: counts?.starred,
         },
       ],
     },
@@ -68,24 +73,25 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
           id: "today",
           label: "오늘",
           icon: <Calendar className="w-4 h-4" />,
-          count: 4,
+          count: counts?.today,
         },
         {
           id: "tomorrow",
           label: "내일",
           icon: <CalendarDays className="w-4 h-4" />,
-          count: 2,
+          count: counts?.tomorrow,
         },
         {
           id: "overdue",
           label: "지연됨",
           icon: <AlertTriangle className="w-4 h-4" />,
-          count: 1,
+          count: counts?.overdue,
         },
         {
           id: "archive",
           label: "보관함",
           icon: <Archive className="w-4 h-4" />,
+          count: counts?.archive,
         },
       ],
     },
@@ -100,7 +106,7 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
         },
       ],
     },
-  ];
+  ], [counts]);
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories((prev) => {
@@ -145,7 +151,7 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveItemId(item.id)}
+                      onClick={() => onItemSelect?.(item.id as SidebarMenuId)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all ${
                         isActive
                           ? "bg-[#3d5a3d] text-white shadow-sm"

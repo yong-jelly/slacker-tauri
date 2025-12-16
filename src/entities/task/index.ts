@@ -6,5 +6,6 @@ export {
   type TaskNote,
   type TaskRunHistory,
   type TimeExtensionHistory,
+  type TaskActionHistory,
 } from "./types";
 

@@ -1,6 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod db;
+
 use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -9,6 +11,16 @@ use tauri::{
 };
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
+
+use db::{DbState, 
+    get_db_status, init_db, load_existing_db, logout,
+    list_tasks, get_task, create_task, update_task, delete_task,
+    add_task_memo, add_task_note, update_task_note, add_task_tag, remove_task_tag,
+    start_task_run, end_task_run, extend_task_time,
+    get_setting, set_setting, get_all_settings,
+    get_sidebar_counts,
+    list_tables, query_table,
+};
 
 // 타이머 상태 관리
 struct TimerState {
@@ -35,7 +47,10 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .manage(timer_state)
+        .manage(DbState::default())
         .setup(|app| {
             // 시스템 트레이 설정
             let show_item = MenuItem::with_id(app, "show", "앱 열기", true, None::<&str>)?;
@@ -112,10 +127,41 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            // 타이머 커맨드
             start_tray_timer,
             stop_tray_timer,
             get_remaining_time,
-            sync_tray_timer
+            sync_tray_timer,
+            // DB 관리 커맨드
+            get_db_status,
+            init_db,
+            load_existing_db,
+            logout,
+            // Task CRUD 커맨드
+            list_tasks,
+            get_task,
+            create_task,
+            update_task,
+            delete_task,
+            // 메모/노트/태그 커맨드
+            add_task_memo,
+            add_task_note,
+            update_task_note,
+            add_task_tag,
+            remove_task_tag,
+            // 히스토리 커맨드
+            start_task_run,
+            end_task_run,
+            extend_task_time,
+            // 설정 커맨드
+            get_setting,
+            set_setting,
+            get_all_settings,
+            // 사이드바 카운트 커맨드
+            get_sidebar_counts,
+            // 테이블 조회 커맨드
+            list_tables,
+            query_table,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

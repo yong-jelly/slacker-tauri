@@ -18,7 +18,9 @@ export type { TaskItemProps };
 
 export const TaskItem = ({
   task,
-  onOpenDetail,
+  isExpanded: isDetailExpanded = false,
+  onToggleExpand,
+  onOpenDetail: _onOpenDetail,
   onStatusChange,
   defaultDuration,
   onAddMemo,
@@ -58,9 +60,6 @@ export const TaskItem = ({
     onExtendTime,
   });
 
-  // 상세 정보 확장 상태
-  const [isDetailExpanded, setIsDetailExpanded] = useState(false);
-  
   // 더보기 모달 상태
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<ModalTabType>("memo");
@@ -68,8 +67,9 @@ export const TaskItem = ({
   // 메모 입력 상태
   const [memoInput, setMemoInput] = useState("");
 
-  // 노트 입력 상태
-  const [noteContent, setNoteContent] = useState("");
+  // 노트 입력 상태 - 가장 최근 노트 내용으로 초기화
+  const latestNote = task.notes?.length ? task.notes[task.notes.length - 1] : null;
+  const [noteContent, setNoteContent] = useState(() => latestNote?.content ?? "");
 
   // 태그 입력 상태
   const [tagInput, setTagInput] = useState("");
@@ -114,6 +114,12 @@ export const TaskItem = ({
     );
   }, [task.timeExtensions]);
 
+  const sortedActionHistory = useMemo(() => {
+    return [...(task.actionHistory || [])].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [task.actionHistory]);
+
   // 핸들러들
   const handleComplete = useCallback(
     (e: React.MouseEvent) => {
@@ -130,16 +136,16 @@ export const TaskItem = ({
   const handleRowClick = useCallback(() => {
     if (isInProgress) return;
     if (!isDetailExpanded) {
-      setIsDetailExpanded(true);
+      onToggleExpand?.();
     }
-  }, [isDetailExpanded, isInProgress]);
+  }, [isDetailExpanded, isInProgress, onToggleExpand]);
 
   const handleHeaderClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (isDetailExpanded) {
-      setIsDetailExpanded(false);
+      onToggleExpand?.();
     }
-  }, [isDetailExpanded]);
+  }, [isDetailExpanded, onToggleExpand]);
 
   const handleAddMemo = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -160,15 +166,16 @@ export const TaskItem = ({
     e.stopPropagation();
     if (!noteContent.trim()) return;
     
+    // 기존 노트가 있으면 해당 ID 사용 (업데이트), 없으면 새 ID 생성 (추가)
     const newNote: TaskNote = {
-      id: crypto.randomUUID(),
-      title: "",
+      id: latestNote?.id || crypto.randomUUID(),
+      title: latestNote?.title || "",
       content: noteContent.trim(),
-      createdAt: new Date(),
+      createdAt: latestNote?.createdAt || new Date(),
     };
     onAddNote?.(newNote);
-    setNoteContent("");
-  }, [noteContent, onAddNote]);
+    // 저장 후 내용 유지 (업데이트된 내용 표시)
+  }, [noteContent, onAddNote, latestNote]);
 
   const handleOpenModal = useCallback((e: React.MouseEvent, tab: ModalTabType = "memo") => {
     e.stopPropagation();
@@ -309,6 +316,14 @@ export const TaskItem = ({
       setEditingTitle(task.title);
     }
   }, [task.title, isEditingTitle]);
+
+  // task.notes가 변경되면 noteContent도 동기화 (모달이 닫혀있을 때만)
+  useEffect(() => {
+    if (!isModalOpen) {
+      const latest = task.notes?.length ? task.notes[task.notes.length - 1] : null;
+      setNoteContent(latest?.content ?? "");
+    }
+  }, [task.notes, isModalOpen]);
 
   // 진행 중일 때 랜덤한 시간에 외곽 라인 이펙트 발생
   useEffect(() => {
@@ -526,6 +541,10 @@ export const TaskItem = ({
                 <span className="text-[10px] text-gray-500">
                   {expectedDurationText}
                 </span>
+                {/* 중요 표시 별 아이콘 */}
+                {task.isImportant && (
+                  <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                )}
                 {!isPaused && completedProgress > 0 && (
                   <span className="text-[10px] ml-0.5 text-[#FF6B00]">
                     • {Math.round(completedProgress * 100)}%
@@ -689,7 +708,6 @@ export const TaskItem = ({
               targetDateText={targetDateText}
               delayDays={delayDays}
               isDelayed={isDelayed}
-              expectedDurationText={expectedDurationText}
               latestMemo={latestMemo}
               memoInput={memoInput}
               tagInput={tagInput}
@@ -714,6 +732,7 @@ export const TaskItem = ({
               isOpen={isModalOpen}
               activeTab={modalTab}
               sortedHistory={sortedHistory}
+              sortedActionHistory={sortedActionHistory}
               sortedTimeExtensions={sortedTimeExtensions}
               expectedDurationText={expectedDurationText}
               memoInput={memoInput}

@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { Task, TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 import { TaskItem } from "./TaskItem";
 
@@ -34,6 +35,13 @@ export const TaskList = ({
   onExtendTime,
   onTitleChange,
 }: TaskListProps) => {
+  // 아코디언: 하나의 TaskItem만 펼쳐지도록 관리
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+
+  const handleToggleExpand = useCallback((taskId: string) => {
+    setExpandedTaskId((prev) => (prev === taskId ? null : taskId));
+  }, []);
+
   return (
     <div className="flex flex-col gap-2">
       {tasks.map((task) => (
@@ -41,6 +49,8 @@ export const TaskList = ({
           key={task.id}
           task={task}
           isSelected={task.id === selectedTaskId}
+          isExpanded={expandedTaskId === task.id}
+          onToggleExpand={() => handleToggleExpand(task.id)}
           onOpenDetail={() => onTaskSelect?.(task.id)}
           onStatusChange={(status) => onStatusChange?.(task.id, status)}
           onAddMemo={(memo) => onAddMemo?.(task.id, memo)}

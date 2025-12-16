@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Input, Button } from "@shared/ui";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { motion } from "motion/react";
 
 interface AddTaskFormProps {
