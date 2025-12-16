@@ -26,6 +26,8 @@ export interface TaskItemProps {
   onArchive?: () => void;
   /** 시간 추가 핸들러 */
   onExtendTime?: (extension: TimeExtensionHistory) => void;
+  /** 타이틀 변경 핸들러 */
+  onTitleChange?: (title: string) => void;
 }
 
 export type ModalTabType = "memo" | "note" | "history" | "time";

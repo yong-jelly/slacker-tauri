@@ -50,3 +50,4 @@ export const HistoryTabContent = ({ sortedHistory }: HistoryTabContentProps) => 
   </div>
 );
 
+

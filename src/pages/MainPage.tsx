@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Task, TaskStatus, TaskPriority, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 import { TaskSection, AppLayout } from "@widgets";
 import { openTaskWindow } from "@shared/lib/openTaskWindow";
@@ -6,6 +6,8 @@ import { requestNotificationPermission, sendTaskCompletedNotification } from "@s
 
 export const MainPage = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>();
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 앱 시작 시 알림 권한 요청
   useEffect(() => {
@@ -360,9 +362,63 @@ export const MainPage = () => {
     );
   }, []);
 
+  // 타이틀 변경 핸들러
+  const handleTitleChange = useCallback((taskId: string, title: string) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, title }
+          : t
+      )
+    );
+  }, []);
+
+  // Task 추가 핸들러
+  const handleAddTask = useCallback((title: string, targetDate: Date, expectedDuration: number) => {
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      title,
+      priority: TaskPriority.MEDIUM,
+      status: TaskStatus.INBOX,
+      totalTimeSpent: 0,
+      expectedDuration,
+      createdAt: new Date(),
+      targetDate,
+    };
+    setTasks((prev) => [newTask, ...prev]);
+    setIsAddingTask(false);
+  }, []);
+
+  // Task 추가 UI 열기/닫기
+  const handleOpenAddTask = useCallback(() => {
+    setIsAddingTask(true);
+    // 스크롤을 맨 위로 이동
+    setTimeout(() => {
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
+  }, []);
+
+  const handleCloseAddTask = useCallback(() => {
+    setIsAddingTask(false);
+  }, []);
+
+  // 현재 진행중인 Task (하나만 있다고 가정)
+  const currentInProgressTask = inProgressTasks.length > 0 ? inProgressTasks[0] : null;
+
+  // Widget 모드에서 Task 상태 변경 핸들러
+  const handleWidgetStatusChange = (status: TaskStatus) => {
+    if (currentInProgressTask) {
+      handleStatusChange(currentInProgressTask.id, status);
+    }
+  };
+
   return (
-    <AppLayout>
-      <div className="h-full overflow-y-auto">
+    <AppLayout
+      inProgressTask={currentInProgressTask}
+      onTaskStatusChange={handleWidgetStatusChange}
+      onAddTaskClick={handleOpenAddTask}
+    >
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto">
         <div className="p-6 space-y-8">
           {/* 진행중 섹션 */}
           <TaskSection
@@ -381,6 +437,7 @@ export const MainPage = () => {
             onTargetDateChange={handleTargetDateChange}
             onArchive={handleArchive}
             onExtendTime={handleExtendTime}
+            onTitleChange={handleTitleChange}
             sectionType="inProgress"
           />
 
@@ -401,6 +458,7 @@ export const MainPage = () => {
             onTargetDateChange={handleTargetDateChange}
             onArchive={handleArchive}
             onExtendTime={handleExtendTime}
+            onTitleChange={handleTitleChange}
             sectionType="paused"
           />
 
@@ -421,6 +479,10 @@ export const MainPage = () => {
             onTargetDateChange={handleTargetDateChange}
             onArchive={handleArchive}
             onExtendTime={handleExtendTime}
+            onTitleChange={handleTitleChange}
+            showAddTaskForm={isAddingTask}
+            onAddTask={handleAddTask}
+            onCloseAddTask={handleCloseAddTask}
             sectionType="inbox"
           />
 
@@ -441,6 +503,7 @@ export const MainPage = () => {
             onTargetDateChange={handleTargetDateChange}
             onArchive={handleArchive}
             onExtendTime={handleExtendTime}
+            onTitleChange={handleTitleChange}
             sectionType="completed"
           />
         </div>

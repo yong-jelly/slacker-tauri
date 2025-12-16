@@ -1,47 +1,52 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /**
- * 시스템 트레이 타이틀 업데이트 (타이머 시간 표시)
- * @param title 표시할 타이틀 (예: "05:30")
+ * 트레이 타이머 시작 (Play 시 호출)
+ * @param remainingSecs 남은 시간 (초)
+ * @param taskTitle 태스크 이름
  */
-export const updateTrayTitle = async (title: string): Promise<void> => {
+export const startTrayTimer = async (remainingSecs: number, taskTitle: string): Promise<void> => {
   try {
-    await invoke("update_tray_title", { title });
+    await invoke("start_tray_timer", { remainingSecs, taskTitle });
   } catch (error) {
-    console.error("Failed to update tray title:", error);
+    console.error("Failed to start tray timer:", error);
   }
 };
 
 /**
- * 타이머 시간을 트레이에 표시 형식으로 변환
- * @param seconds 남은 시간 (초)
- * @param taskTitle 태스크 이름 (선택)
- * @returns 표시할 문자열 (예: "피드백 기능 추가 05:30")
+ * 트레이 타이머 정지 (Pause/Stop 시 호출)
+ * @returns 남은 시간 (초)
  */
-export const formatTrayTime = (seconds: number, taskTitle?: string): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const time = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  
-  if (taskTitle) {
-    // 태스크 이름이 너무 길면 잘라내기 (트레이 공간 제한)
-    const maxTitleLength = 15;
-    const truncatedTitle = taskTitle.length > maxTitleLength 
-      ? taskTitle.slice(0, maxTitleLength) + "…" 
-      : taskTitle;
-    return `${truncatedTitle} ${time}`;
+export const stopTrayTimer = async (): Promise<number> => {
+  try {
+    return await invoke("stop_tray_timer") as number;
+  } catch (error) {
+    console.error("Failed to stop tray timer:", error);
+    return 0;
   }
-  return `⏱ ${time}`;
 };
 
 /**
- * 트레이 타이틀 초기화 (타이머 없을 때)
+ * 현재 남은 시간 조회 (포그라운드 복귀 시)
+ * @returns [남은 시간(초), 실행 중 여부]
  */
-export const clearTrayTitle = async (): Promise<void> => {
+export const getRemainingTime = async (): Promise<[number, boolean]> => {
   try {
-    await invoke("update_tray_title", { title: "Slacker" });
+    return await invoke("get_remaining_time") as [number, boolean];
   } catch (error) {
-    console.error("Failed to clear tray title:", error);
+    console.error("Failed to get remaining time:", error);
+    return [0, false];
   }
 };
 
+/**
+ * 트레이 타이머 시간 동기화 (시간 연장 시)
+ * @param remainingSecs 새로운 남은 시간 (초)
+ */
+export const syncTrayTimer = async (remainingSecs: number): Promise<void> => {
+  try {
+    await invoke("sync_tray_timer", { remainingSecs });
+  } catch (error) {
+    console.error("Failed to sync tray timer:", error);
+  }
+};

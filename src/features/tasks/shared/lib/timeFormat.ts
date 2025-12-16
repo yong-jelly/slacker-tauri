@@ -9,13 +9,13 @@ export const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
-/** 밀리초 단위를 M:SS.cc 형식으로 변환 (100분의 1초 포함) */
+/** 밀리초 단위를 MM:SS.cc 형식으로 변환 (100분의 1초 포함) */
 export const formatTimeMs = (ms: number): string => {
   const totalSeconds = Math.floor(ms / 1000);
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   const centiseconds = Math.floor((ms % 1000) / 10);
-  return `${mins}:${secs.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
 };
 
 /** 분 단위를 한글 형식으로 변환 (예: 5분, 1시간 30분) */

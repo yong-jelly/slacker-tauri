@@ -56,19 +56,35 @@ export const TaskTimerSection = ({
 
         <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
           <motion.div
-            className={`
-              h-full rounded-full
-              ${urgencyLevel === "critical"
-                ? "bg-gradient-to-r from-red-600 to-red-400"
+            className="h-full rounded-full relative overflow-hidden"
+            style={{
+              background: urgencyLevel === "critical"
+                ? "linear-gradient(90deg, #dc2626 0%, #f87171 100%)"
                 : urgencyLevel === "warning"
-                  ? "bg-gradient-to-r from-yellow-600 to-yellow-400"
-                  : "bg-gradient-to-r from-[#FF6B00] to-[#FF8A3D]"
-              }
-            `}
+                  ? "linear-gradient(90deg, #ca8a04 0%, #facc15 100%)"
+                  : "linear-gradient(90deg, #FF6B00 0%, #FF8A3D 100%)",
+            }}
             initial={{ width: "100%" }}
             animate={{ width: `${progress * 100}%` }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-          />
+          >
+            {/* 흐르는 빛 효과 */}
+            <motion.div
+              className="absolute inset-0"
+              style={{
+                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)",
+                width: "200%",
+              }}
+              animate={{
+                x: ["-100%", "0%"],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          </motion.div>
         </div>
 
         <motion.span
@@ -127,35 +143,6 @@ export const TaskTimerSection = ({
         </motion.div>
       </div>
 
-      {/* 파동 애니메이션 */}
-      <div className="flex justify-center mt-3">
-        <div className="flex items-end gap-0.5 h-[6px]">
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-            <motion.div
-              key={i}
-              className={`
-                w-0.5 rounded-full
-                ${urgencyLevel === "critical"
-                  ? "bg-red-500"
-                  : urgencyLevel === "warning"
-                    ? "bg-yellow-500"
-                    : "bg-[#FF6B00]"
-                }
-              `}
-              animate={{
-                height: ["2px", "6px", "2px"],
-                opacity: [0.4, 1, 0.4],
-              }}
-              transition={{
-                duration: 0.8,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: i * 0.05,
-              }}
-            />
-          ))}
-        </div>
-      </div>
     </motion.div>
   );
 };

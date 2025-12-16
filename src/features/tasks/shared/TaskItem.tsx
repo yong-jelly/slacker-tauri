@@ -1,10 +1,10 @@
 import { TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
-import { Checkbox } from "@shared/ui";
+import { Checkbox, Input } from "@shared/ui";
 import { 
   Play, Pause, Flame, Zap, Clock, AlertTriangle, Star, Trash2, MoreHorizontal
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 
 import { formatMinutes, formatTargetDate, getDelayDays, formatRelativeTime } from "./lib/timeFormat";
 import { useTaskTimer } from "./hooks/useTaskTimer";
@@ -30,6 +30,7 @@ export const TaskItem = ({
   onTargetDateChange,
   onArchive,
   onExtendTime,
+  onTitleChange,
 }: TaskItemProps) => {
   const isCompleted = task.status === TaskStatus.COMPLETED;
   const isInProgress = task.status === TaskStatus.IN_PROGRESS;
@@ -78,6 +79,15 @@ export const TaskItem = ({
 
   // 호버 상태
   const [isHovered, setIsHovered] = useState(false);
+
+  // 외곽 라인 이펙트 상태 (랜덤 발생)
+  const [showBorderFlash, setShowBorderFlash] = useState(false);
+
+  // 타이틀 편집 상태
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(task.title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const isSavingRef = useRef(false);
 
   const isNotStarted = isInbox && completedProgress === 0;
   const expectedDurationText = formatMinutes(task.expectedDuration ?? 5);
@@ -236,6 +246,106 @@ export const TaskItem = ({
     onArchive?.();
   }, [onArchive]);
 
+  // 타이틀 편집 관련 핸들러
+  const handleTitleClick = useCallback((e: React.MouseEvent) => {
+    // 타이틀 클릭 시 편집 모드로 진입 (헤더 클릭 이벤트 전파 방지)
+    e.stopPropagation();
+    if (isDetailExpanded && !isInProgress && !isCompleted) {
+      setIsEditingTitle(true);
+      setEditingTitle(task.title);
+    }
+  }, [isDetailExpanded, isInProgress, isCompleted, task.title]);
+
+  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingTitle(e.target.value);
+  }, []);
+
+  const handleTitleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      const trimmedTitle = editingTitle.trim();
+      isSavingRef.current = true;
+      if (trimmedTitle) {
+        onTitleChange?.(trimmedTitle);
+      } else {
+        // 빈 문자열이면 원래 타이틀로 복원
+        setEditingTitle(task.title);
+      }
+      setIsEditingTitle(false);
+      // blur 이벤트가 발생하기 전에 플래그를 리셋
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 0);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setEditingTitle(task.title);
+      setIsEditingTitle(false);
+    }
+  }, [editingTitle, onTitleChange, task.title]);
+
+  const handleTitleBlur = useCallback(() => {
+    // Enter 키로 저장한 경우는 blur에서 처리하지 않음
+    if (isSavingRef.current) {
+      return;
+    }
+    // 포커스가 다른 곳으로 가면 원래 텍스트로 복원
+    setEditingTitle(task.title);
+    setIsEditingTitle(false);
+  }, [task.title]);
+
+  // 편집 모드일 때 자동 포커스
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  // task.title이 변경되면 editingTitle도 동기화
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setEditingTitle(task.title);
+    }
+  }, [task.title, isEditingTitle]);
+
+  // 진행 중일 때 랜덤한 시간에 외곽 라인 이펙트 발생
+  useEffect(() => {
+    if (!isInProgress) {
+      setShowBorderFlash(false);
+      return;
+    }
+
+    const triggerFlash = () => {
+      setShowBorderFlash(true);
+      // 3초 후 이펙트 종료
+      setTimeout(() => setShowBorderFlash(false), 3000);
+    };
+
+    // 초기 랜덤 딜레이 후 첫 이펙트
+    const initialDelay = 2000 + Math.random() * 3000; // 2-5초 사이
+    const initialTimer = setTimeout(() => {
+      triggerFlash();
+    }, initialDelay);
+
+    // 이후 8-15초 사이 랜덤 간격으로 반복 (3초 이펙트 고려)
+    const scheduleNextFlash = () => {
+      const nextDelay = 8000 + Math.random() * 7000; // 8-15초 사이
+      return setTimeout(() => {
+        triggerFlash();
+        intervalRef.current = scheduleNextFlash();
+      }, nextDelay);
+    };
+
+    const intervalRef = { current: scheduleNextFlash() };
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearTimeout(intervalRef.current);
+    };
+  }, [isInProgress]);
+
   return (
     <motion.div
       layout
@@ -272,48 +382,63 @@ export const TaskItem = ({
         />
       )}
 
-      {/* 진행 중 외곽 파동 효과 */}
+      {/* 랜덤 외곽 라인 플래시 이펙트 - 빛이 테두리를 따라 흐르는 효과 */}
       <AnimatePresence>
-        {isInProgress && (
-          <>
+        {isInProgress && showBorderFlash && (
+          <motion.div
+            className="absolute -inset-[6px] rounded-[18px] pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            {/* 글로우 레이어 - 빛이 흐르는 효과 */}
             <motion.div
-              className="absolute inset-0 rounded-xl"
-              style={{ borderColor: urgencyColors.border }}
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0.6, 0],
-                scale: [1, 1.02],
-                boxShadow: [
-                  `0 0 0px ${urgencyColors.glow}`,
-                  `0 0 12px ${urgencyColors.glow}`,
-                ],
+              className="absolute inset-0 rounded-[18px]"
+              style={{
+                background: "conic-gradient(from 0deg, transparent 0%, transparent 70%, #ff00ff 78%, #00ffff 82%, #ffff00 86%, #ff0000 90%, transparent 95%, transparent 100%)",
+                filter: "blur(8px)",
+                opacity: 0.8,
               }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
-              exit={{ opacity: 0 }}
+              initial={{ rotate: -90 }}
+              animate={{ rotate: 270 }}
+              exit={{ rotate: 270, opacity: 0 }}
+              transition={{ duration: 2.5, ease: [0.4, 0, 0.2, 1] }}
             />
+            
+            {/* 선명한 외곽선 레이어 */}
             <motion.div
-              className="absolute inset-0 rounded-xl"
-              style={{ borderColor: urgencyColors.border }}
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0.4, 0],
-                scale: [1, 1.03],
-                boxShadow: [
-                  `0 0 0px ${urgencyColors.glow}`,
-                  `0 0 16px ${urgencyColors.glow}`,
-                ],
+              className="absolute inset-[5px] rounded-xl"
+              style={{
+                background: "conic-gradient(from 0deg, transparent 0%, transparent 65%, #ff00ff 75%, #00ffff 80%, #ffff00 85%, #00ff00 88%, #ff0000 92%, transparent 97%, transparent 100%)",
               }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
-              exit={{ opacity: 0 }}
+              initial={{ rotate: -90 }}
+              animate={{ rotate: 270 }}
+              exit={{ rotate: 270 }}
+              transition={{ duration: 2.5, ease: [0.4, 0, 0.2, 1] }}
             />
+            
+            {/* 빛 꼬리 효과 */}
             <motion.div
-              className="absolute inset-0 rounded-xl border"
-              style={{ borderColor: `${urgencyColors.border}40` }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              className="absolute inset-[4px] rounded-[14px]"
+              style={{
+                background: "conic-gradient(from 0deg, transparent 0%, transparent 60%, rgba(255,255,255,0.1) 70%, rgba(255,255,255,0.4) 80%, rgba(255,255,255,0.1) 90%, transparent 95%, transparent 100%)",
+                filter: "blur(3px)",
+              }}
+              initial={{ rotate: -90 }}
+              animate={{ rotate: 270 }}
+              exit={{ rotate: 270, opacity: 0 }}
+              transition={{ duration: 2.5, ease: [0.4, 0, 0.2, 1] }}
             />
-          </>
+            
+            {/* 내부 마스크 - 모든 효과 위에서 내부를 완전히 덮음 */}
+            <div 
+              className="absolute inset-[6px] rounded-xl bg-[#2B2D31]"
+              style={{ 
+                boxShadow: "0 0 0 2px #2B2D31",
+              }}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -324,38 +449,66 @@ export const TaskItem = ({
         `}
       >
         {/* 상단: 원형 프로그레스 + 제목 + 컨트롤 버튼 */}
-        <div className="flex items-center gap-4" onClick={isDetailExpanded ? handleHeaderClick : undefined}>
+        <div 
+          className={`flex items-center gap-4 ${isDetailExpanded && !isEditingTitle ? "cursor-pointer" : ""}`}
+          onClick={isDetailExpanded && !isEditingTitle ? handleHeaderClick : undefined}
+        >
           {/* 원형 프로그레스 인디케이터 / 체크박스 */}
-          <div className="flex-shrink-0" onClick={handleComplete}>
-            {isCompleted ? (
-              <Checkbox
-                checked={true}
-                checkedColor="#22C55E"
-                size="md"
-                onChange={() => {}}
-              />
-            ) : (
-              <CircularProgress
-                progress={completedProgress}
-                size={24}
-                strokeWidth={2.5}
-                progressColor={urgencyColors.progress}
-                isPaused={isPaused}
-                isNotStarted={isNotStarted}
-              />
-            )}
-          </div>
+          {!isEditingTitle && (
+            <div className="flex-shrink-0" onClick={handleComplete}>
+              {isCompleted ? (
+                <Checkbox
+                  checked={true}
+                  checkedColor="#22C55E"
+                  size="md"
+                  onChange={() => {}}
+                />
+              ) : (
+                <CircularProgress
+                  progress={completedProgress}
+                  size={24}
+                  strokeWidth={2.5}
+                  progressColor={urgencyColors.progress}
+                  isPaused={isPaused}
+                  isNotStarted={isNotStarted}
+                />
+              )}
+            </div>
+          )}
 
           {/* 제목 및 기대 시간 */}
-          <div className="flex-1 min-w-0 flex items-center gap-3">
-            <span
-              className={`text-sm font-medium truncate ${isCompleted ? "line-through text-gray-500" : ""}`}
-            >
-              {task.title}
-            </span>
+          <div 
+            className={`flex-1 min-w-0 flex items-center gap-3 ${
+              isDetailExpanded && !isEditingTitle ? "pointer-events-none" : ""
+            }`}
+          >
+            {isEditingTitle ? (
+              <Input
+                ref={titleInputRef}
+                value={editingTitle}
+                onChange={handleTitleChange}
+                onKeyDown={handleTitleKeyDown}
+                onBlur={handleTitleBlur}
+                className="text-sm font-medium bg-gray-800/50 border-gray-600 px-2 py-1 h-auto pointer-events-auto"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span
+                onClick={handleTitleClick}
+                className={`text-sm font-medium truncate pointer-events-auto ${
+                  isCompleted ? "line-through text-gray-500" : ""
+                } ${
+                  isDetailExpanded && !isInProgress && !isCompleted
+                    ? "cursor-text underline decoration-gray-500/50 hover:decoration-gray-400/70"
+                    : ""
+                }`}
+              >
+                {task.title}
+              </span>
+            )}
             {/* 펼침 상태일 때 중앙에 예상시간 표시 */}
-            {isDetailExpanded && !isInProgress && (
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isDetailExpanded && !isInProgress && !isEditingTitle && (
+              <div className="flex items-center gap-1.5 flex-shrink-0 pointer-events-auto">
                 <Clock className="w-3 h-3 text-gray-500" />
                 <span className="text-xs text-gray-400">
                   {expectedDurationText}
@@ -408,7 +561,7 @@ export const TaskItem = ({
 
           {/* 긴급 아이콘 */}
           <AnimatePresence>
-            {isInProgress && urgencyLevel !== "normal" && !isDetailExpanded && (
+            {isInProgress && urgencyLevel !== "normal" && !isDetailExpanded && !isEditingTitle && (
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
@@ -425,7 +578,7 @@ export const TaskItem = ({
           </AnimatePresence>
 
           {/* 컨트롤 버튼 */}
-          {!isCompleted && (
+          {!isCompleted && !isEditingTitle && (
             <div className="flex items-center gap-2">
               {isDetailExpanded && !isInProgress ? (
                 <>

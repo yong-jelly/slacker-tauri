@@ -15,6 +15,7 @@ interface TaskListProps {
   onTargetDateChange?: (taskId: string, date: Date) => void;
   onArchive?: (taskId: string) => void;
   onExtendTime?: (taskId: string, extension: TimeExtensionHistory) => void;
+  onTitleChange?: (taskId: string, title: string) => void;
 }
 
 export const TaskList = ({
@@ -31,6 +32,7 @@ export const TaskList = ({
   onTargetDateChange,
   onArchive,
   onExtendTime,
+  onTitleChange,
 }: TaskListProps) => {
   return (
     <div className="flex flex-col gap-2">
@@ -50,6 +52,7 @@ export const TaskList = ({
           onTargetDateChange={(date) => onTargetDateChange?.(task.id, date)}
           onArchive={() => onArchive?.(task.id)}
           onExtendTime={(ext) => onExtendTime?.(task.id, ext)}
+          onTitleChange={(title) => onTitleChange?.(task.id, title)}
         />
       ))}
     </div>

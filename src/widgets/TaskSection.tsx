@@ -1,6 +1,8 @@
 import { Task, TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 import { TaskList } from "@features/tasks/shared";
+import { AddTaskForm } from "@features/tasks/shared/ui/AddTaskForm";
 import { Inbox, PlayCircle, PauseCircle, CheckCircle2 } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 
 interface TaskSectionProps {
   title: string;
@@ -18,6 +20,13 @@ interface TaskSectionProps {
   onTargetDateChange?: (taskId: string, date: Date) => void;
   onArchive?: (taskId: string) => void;
   onExtendTime?: (taskId: string, extension: TimeExtensionHistory) => void;
+  onTitleChange?: (taskId: string, title: string) => void;
+  /** Task 추가 UI 표시 여부 (할일 섹션용) */
+  showAddTaskForm?: boolean;
+  /** Task 추가 핸들러 */
+  onAddTask?: (title: string, targetDate: Date, expectedDuration: number) => void;
+  /** Task 추가 UI 닫기 핸들러 */
+  onCloseAddTask?: () => void;
   /** 섹션 타입 (빈 상태 아이콘 결정용) */
   sectionType?: "inProgress" | "paused" | "inbox" | "completed";
 }
@@ -79,6 +88,10 @@ export const TaskSection = ({
   onTargetDateChange,
   onArchive,
   onExtendTime,
+  onTitleChange,
+  showAddTaskForm,
+  onAddTask,
+  onCloseAddTask,
   sectionType,
 }: TaskSectionProps) => {
   const emptyState = getEmptyStateInfo(sectionType);
@@ -91,6 +104,16 @@ export const TaskSection = ({
         <h2 className="text-base font-medium text-gray-400">{title}</h2>
         <span className="text-base font-medium text-gray-500">{count}</span>
       </div>
+
+      {/* Task 추가 폼 (할일 섹션에만 표시) */}
+      <AnimatePresence>
+        {showAddTaskForm && onAddTask && (
+          <AddTaskForm
+            onSubmit={onAddTask}
+            onCancel={onCloseAddTask}
+          />
+        )}
+      </AnimatePresence>
 
       {isEmpty ? (
         // 빈 상태 UI
@@ -118,6 +141,7 @@ export const TaskSection = ({
           onTargetDateChange={onTargetDateChange}
           onArchive={onArchive}
           onExtendTime={onExtendTime}
+          onTitleChange={onTitleChange}
         />
       )}
     </div>
