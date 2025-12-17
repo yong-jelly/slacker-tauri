@@ -2,12 +2,13 @@ import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory, Task, TaskRunHistory, TaskActionHistory } from "@entities/task";
 import { useTaskTimer } from "./useTaskTimer";
 import type { UrgencyLevel, UrgencyColors } from "../lib/urgency";
-import type { ModalTabType } from "../types";
+import type { ModalTabType, StatusChangeOptions } from "../types";
 
 export interface UseTaskItemOptions {
   task: Task;
   defaultDuration?: number;
-  onStatusChange?: (status: TaskStatus) => void;
+  /** 상태 변경 핸들러 - 일시정지 시 남은 시간도 함께 전달 */
+  onStatusChange?: (status: TaskStatus, options?: StatusChangeOptions) => void;
   onAddMemo?: (memo: TaskMemo) => void;
   onAddNote?: (note: TaskNote) => void;
   onAddTag?: (tag: string) => void;
@@ -114,7 +115,9 @@ export const useTaskItem = ({
   const isPaused = task.status === TaskStatus.PAUSED;
   const isInbox = task.status === TaskStatus.INBOX;
 
-  // 타이머 훅
+  console.log("[useTaskItem] task.remainingTimeSeconds:", task.remainingTimeSeconds, "status:", task.status);
+
+  // 타이머 훅 - DB에 저장된 남은 시간이 있으면 사용
   const {
     remainingTimeMs,
     remainingTimeSeconds,
@@ -129,6 +132,7 @@ export const useTaskItem = ({
   } = useTaskTimer({
     expectedDuration: task.expectedDuration ?? 5,
     defaultDuration,
+    savedRemainingTimeSeconds: task.remainingTimeSeconds,
     isInProgress,
     taskTitle: task.title,
     onStatusChange,

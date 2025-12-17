@@ -133,6 +133,11 @@ pub fn get_db_status(app_handle: AppHandle, state: State<DbState>) -> Result<DbS
     let state_path = state.db_path.lock().map_err(|e| e.to_string())?.clone();
     
     if let Some(path) = state_path {
+        // 앱 재시작 시에도 마이그레이션 실행
+        if path.exists() {
+            let conn = Connection::open(&path).map_err(|e| e.to_string())?;
+            run_migrations(&conn)?;
+        }
         return build_status(&path, true);
     }
 
@@ -140,6 +145,13 @@ pub fn get_db_status(app_handle: AppHandle, state: State<DbState>) -> Result<DbS
     if let Some(path) = load_config_path(&app_handle)? {
         // state 업데이트
         *state.db_path.lock().map_err(|e| e.to_string())? = Some(path.clone());
+        
+        // 마이그레이션 실행 (기존 DB에 새 컬럼 추가)
+        if path.exists() {
+            let conn = Connection::open(&path).map_err(|e| e.to_string())?;
+            run_migrations(&conn)?;
+        }
+        
         return build_status(&path, true);
     }
 
@@ -342,6 +354,10 @@ pub fn update_task(
     state: State<DbState>,
     input: UpdateTaskInput,
 ) -> Result<(), String> {
+    // 디버그: 입력값 확인
+    println!("[update_task] Input: {:?}", input);
+    println!("[update_task] remaining_time_seconds: {:?}", input.remaining_time_seconds);
+    
     let conn = get_connection(&app_handle, &state)?;
 
     // 상태 변경 시 액션 히스토리 기록을 위해 현재 상태 조회
@@ -381,6 +397,7 @@ pub fn update_task(
     }
     add_update!("total_time_spent", input.total_time_spent);
     add_update!("expected_duration", input.expected_duration);
+    add_update!("remaining_time_seconds", input.remaining_time_seconds);
     add_update!("target_date", input.target_date);
     if let Some(i) = input.is_important {
         updates.push(format!("is_important = ?{}", params.len() + 1));
@@ -955,6 +972,7 @@ fn map_task_row(row: &rusqlite::Row) -> rusqlite::Result<Task> {
         status: TaskStatus::from(row.get::<_, String>("status")?.as_str()),
         total_time_spent: row.get("total_time_spent")?,
         expected_duration: row.get("expected_duration")?,
+        remaining_time_seconds: row.get("remaining_time_seconds")?,
         target_date: row.get("target_date")?,
         is_important: row.get::<_, i64>("is_important")? != 0,
         created_at: row.get("created_at")?,

@@ -1,5 +1,22 @@
 import { Task, TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 
+/** 태스크 정렬 기준 */
+export type SortType = "created" | "remainingTime" | "title" | "custom";
+
+/** 정렬 옵션 레이블 매핑 */
+export const SORT_LABELS: Record<SortType, string> = {
+  created: "생성일",
+  remainingTime: "남은시간",
+  title: "이름순",
+  custom: "사용자",
+};
+
+/** 상태 변경 시 추가 정보 */
+export interface StatusChangeOptions {
+  /** 일시정지 시 남은 시간 (초 단위) */
+  remainingTimeSeconds?: number;
+}
+
 export interface TaskItemProps {
   task: Task;
   isSelected?: boolean;
@@ -9,7 +26,8 @@ export interface TaskItemProps {
   onToggleExpand?: () => void;
   /** 외부 창으로 상세 열기 핸들러 */
   onOpenDetail?: () => void;
-  onStatusChange?: (status: TaskStatus) => void;
+  /** 상태 변경 핸들러 - 일시정지 시 남은 시간도 함께 전달 */
+  onStatusChange?: (status: TaskStatus, options?: StatusChangeOptions) => void;
   /** 타이머 기본 시간 (초 단위), 기본값은 task.expectedDuration 또는 300초(5분) */
   defaultDuration?: number;
   /** 짧은 메모 추가 핸들러 */

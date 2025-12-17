@@ -80,6 +80,8 @@ export interface Task {
   totalTimeSpent: number; // 분 단위
   /** 기대 작업 시간 (분 단위), 기본값 5분 */
   expectedDuration?: number;
+  /** 남은 시간 (초 단위) - 일시정지 시 저장, 재시작 시 사용 */
+  remainingTimeSeconds?: number;
   createdAt: Date;
   completedAt?: Date;
   lastPausedAt?: Date;

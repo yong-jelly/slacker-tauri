@@ -4,13 +4,17 @@ import { TaskStatus, TimeExtensionHistory } from "@entities/task";
 import { getUrgencyLevel, getUrgencyColors, type UrgencyLevel, type UrgencyColors } from "../lib/urgency";
 import { startTrayTimer, stopTrayTimer, getRemainingTime, syncTrayTimer } from "@shared/lib/tray";
 import { sendTimerEndedNotification } from "@shared/lib/notification";
+import type { StatusChangeOptions } from "../types";
 
-interface UseTaskTimerProps {
+export interface UseTaskTimerProps {
   expectedDuration: number;
   defaultDuration?: number;
+  /** 저장된 남은 시간 (초 단위) - 일시정지 후 재시작 시 사용 */
+  savedRemainingTimeSeconds?: number;
   isInProgress: boolean;
   taskTitle?: string;
-  onStatusChange?: (status: TaskStatus) => void;
+  /** 상태 변경 핸들러 - 일시정지 시 남은 시간도 함께 전달 */
+  onStatusChange?: (status: TaskStatus, options?: StatusChangeOptions) => void;
   onExtendTime?: (extension: TimeExtensionHistory) => void;
   onTimerEnd?: () => void;
 }
@@ -34,6 +38,7 @@ interface UseTaskTimerReturn {
 export const useTaskTimer = ({
   expectedDuration,
   defaultDuration,
+  savedRemainingTimeSeconds,
   isInProgress,
   taskTitle,
   onStatusChange,
@@ -42,10 +47,29 @@ export const useTaskTimer = ({
 }: UseTaskTimerProps): UseTaskTimerReturn => {
   const expectedDurationMs = expectedDuration * 60 * 1000;
   const timerDurationMs = defaultDuration ? defaultDuration * 1000 : expectedDurationMs;
+  
+  // 저장된 남은 시간이 유효하면 사용 (0보다 크고 null/undefined가 아닐 때)
+  // 그렇지 않으면 전체 시간으로 초기화
+  const getInitialRemainingMs = () => {
+    if (savedRemainingTimeSeconds != null && savedRemainingTimeSeconds > 0) {
+      return savedRemainingTimeSeconds * 1000;
+    }
+    return timerDurationMs;
+  };
 
-  const [remainingTimeMs, setRemainingTimeMs] = useState(timerDurationMs);
+  const [remainingTimeMs, setRemainingTimeMs] = useState(getInitialRemainingMs);
   const [isRunning, setIsRunning] = useState(isInProgress);
   const timerEndedRef = useRef(false);
+
+  // savedRemainingTimeSeconds가 변경되면 (DB에서 새로 로드된 경우) 상태 동기화
+  // 단, 현재 실행 중이 아닐 때만 (일시정지 상태에서 컴포넌트가 새로 마운트된 경우)
+  useEffect(() => {
+    console.log("[useTaskTimer] savedRemainingTimeSeconds:", savedRemainingTimeSeconds, "isRunning:", isRunning);
+    if (!isRunning && savedRemainingTimeSeconds != null && savedRemainingTimeSeconds > 0) {
+      console.log("[useTaskTimer] Setting remainingTimeMs to:", savedRemainingTimeSeconds * 1000);
+      setRemainingTimeMs(savedRemainingTimeSeconds * 1000);
+    }
+  }, [savedRemainingTimeSeconds, isRunning]);
 
   // 초 단위
   const remainingTimeSeconds = Math.ceil(remainingTimeMs / 1000);
@@ -132,13 +156,16 @@ export const useTaskTimer = ({
       e.stopPropagation();
       
       let newRemainingMs = remainingTimeMs;
+      console.log("[handlePlay] Current remainingTimeMs:", remainingTimeMs, "timerDurationMs:", timerDurationMs);
       if (remainingTimeMs === 0) {
         newRemainingMs = timerDurationMs;
         setRemainingTimeMs(timerDurationMs);
+        console.log("[handlePlay] Reset to timerDurationMs:", timerDurationMs);
       }
       
       setIsRunning(true);
       // Rust 트레이 타이머 시작
+      console.log("[handlePlay] Starting timer with:", Math.ceil(newRemainingMs / 1000), "seconds");
       await startTrayTimer(Math.ceil(newRemainingMs / 1000), taskTitle || "");
       onStatusChange?.(TaskStatus.IN_PROGRESS);
     },
@@ -151,9 +178,11 @@ export const useTaskTimer = ({
       setIsRunning(false);
       // Rust 트레이 타이머 정지하고 남은 시간 반환받기
       const remainingSecs = await stopTrayTimer();
+      console.log("[handlePause] stopTrayTimer returned:", remainingSecs);
       // Rust 타이머에서 반환된 남은 시간으로 동기화
       setRemainingTimeMs(remainingSecs * 1000);
-      onStatusChange?.(TaskStatus.PAUSED);
+      // 상태 변경과 남은 시간을 함께 전달 (하나의 트랜잭션으로 저장)
+      onStatusChange?.(TaskStatus.PAUSED, { remainingTimeSeconds: remainingSecs });
     },
     [onStatusChange]
   );

@@ -105,10 +105,10 @@ export const TaskItemTitle = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          <Clock className="w-3 h-3 text-gray-500" />
+          {/* <Clock className="w-3 h-3 text-gray-500" />
           <span className="text-[10px] text-gray-500">
             {expectedDurationText}
-          </span>
+          </span> */}
           
           {/* 중요 표시 별 아이콘 */}
           {isImportant && (
@@ -129,7 +129,7 @@ export const TaskItemTitle = ({
           )}
           
           {/* 태그 표시 (호버 시에만) */}
-          {tags && tags.length > 0 && (
+          {/* {tags && tags.length > 0 && (
             <div className={`flex items-center gap-1 ml-1 transition-opacity duration-200 ${isHovered ? "opacity-100" : "opacity-0"}`}>
               {tags.slice(0, 2).map((tag) => (
                 <span
@@ -145,7 +145,7 @@ export const TaskItemTitle = ({
                 </span>
               )}
             </div>
-          )}
+          )} */}
         </motion.div>
       )}
     </div>

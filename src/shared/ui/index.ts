@@ -5,4 +5,5 @@ export { Checkbox } from "./Checkbox";
 export { SettingsSelect } from "./SettingsSelect";
 export { SettingsInput } from "./SettingsInput";
 export { SettingsToggle } from "./SettingsToggle";
+export { SortDropdown } from "./SortDropdown";
 

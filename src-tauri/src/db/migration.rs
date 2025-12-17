@@ -12,8 +12,38 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(SCHEMA_SQL)
         .map_err(|e| format!("Failed to create schema: {}", e))?;
 
+    // 증분 마이그레이션 실행
+    run_incremental_migrations(conn)?;
+
     // 기본 설정값 시드
     seed_default_settings(conn)?;
+
+    Ok(())
+}
+
+/// 증분 마이그레이션 (기존 테이블에 새 컬럼 추가)
+fn run_incremental_migrations(conn: &Connection) -> Result<(), String> {
+    println!("[Migration] Running incremental migrations...");
+    
+    // remaining_time_seconds 컬럼 추가 (일시정지 시 남은 시간 저장용)
+    let has_column = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('tbl_task') WHERE name = 'remaining_time_seconds'",
+        [],
+        |row| row.get::<_, i64>(0),
+    ).map_err(|e| format!("Failed to check column existence: {}", e))?;
+
+    println!("[Migration] has_column remaining_time_seconds: {}", has_column);
+
+    if has_column == 0 {
+        println!("[Migration] Adding remaining_time_seconds column...");
+        conn.execute(
+            "ALTER TABLE tbl_task ADD COLUMN remaining_time_seconds INTEGER",
+            [],
+        ).map_err(|e| format!("Failed to add remaining_time_seconds column: {}", e))?;
+        println!("[Migration] Column added successfully!");
+    } else {
+        println!("[Migration] Column already exists, skipping.");
+    }
 
     Ok(())
 }

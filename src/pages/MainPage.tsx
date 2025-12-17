@@ -6,6 +6,7 @@ import { openTaskWindow } from "@shared/lib/openTaskWindow";
 import { requestNotificationPermission, sendTaskCompletedNotification } from "@shared/lib/notification";
 import { useTasks, useSidebarCounts } from "@shared/hooks";
 import { type SidebarMenuId } from "@widgets/layout/Sidebar";
+import type { StatusChangeOptions, SortType } from "@features/tasks/shared/types";
 
 // 오늘/내일 날짜 비교용 헬퍼
 const isSameDay = (date1: Date, date2: Date) => {
@@ -78,6 +79,16 @@ export const MainPage = () => {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // 각 섹션별 정렬 상태 관리 (진행중 섹션은 정렬 없음)
+  const [pausedSortType, setPausedSortType] = useState<SortType>("created");
+  const [inboxSortType, setInboxSortType] = useState<SortType>("created");
+  const [filteredSortType, setFilteredSortType] = useState<SortType>("created");
+
+  // 사용자 정의 순서 (드래그앤드롭으로 정렬된 태스크 ID 배열)
+  const [customOrderPaused, setCustomOrderPaused] = useState<string[]>([]);
+  const [customOrderInbox, setCustomOrderInbox] = useState<string[]>([]);
+  const [customOrderFiltered, setCustomOrderFiltered] = useState<string[]>([]);
+
   // URL 쿼리 파라미터에서 초기 메뉴 읽기
   const menuFromUrl = searchParams.get("menu") as SidebarMenuId | null;
   const [activeMenuId, setActiveMenuId] = useState<SidebarMenuId>(
@@ -113,36 +124,110 @@ export const MainPage = () => {
     return filterTasksByMenu(tasks, activeMenuId);
   }, [tasks, activeMenuId]);
 
+  // 태스크 정렬 함수
+  const sortTasks = useCallback((taskList: Task[], sortType: SortType, customOrder: string[]): Task[] => {
+    if (sortType === "custom" && customOrder.length > 0) {
+      // 사용자 정의 순서대로 정렬
+      const orderMap = new Map(customOrder.map((id, index) => [id, index]));
+      return [...taskList].sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? Infinity;
+        const orderB = orderMap.get(b.id) ?? Infinity;
+        return orderA - orderB;
+      });
+    }
+    
+    return [...taskList].sort((a, b) => {
+      switch (sortType) {
+        case "created":
+          // 최신 생성일순 (내림차순)
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case "remainingTime":
+          // 남은 시간이 많은 순 (내림차순)
+          const durationA = a.expectedDuration ?? 0;
+          const durationB = b.expectedDuration ?? 0;
+          return durationB - durationA;
+        case "title":
+          // 이름 가나다순 (오름차순)
+          return a.title.localeCompare(b.title, "ko");
+        default:
+          return 0;
+      }
+    });
+  }, []);
+
   // 필터링된 태스크에서 상태별 분류 (4개 섹션)
+  // 진행중 섹션은 정렬 없이 기본 순서 유지
   const inProgressTasks = useMemo(() => {
-    // 진행중인 태스크는 항상 전체에서 필터링 (모든 화면에서 볼 수 있도록)
     return tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
   }, [tasks]);
 
   const pausedTasks = useMemo(() => {
-    return tasks.filter((t) => t.status === TaskStatus.PAUSED);
-  }, [tasks]);
+    const filtered = tasks.filter((t) => t.status === TaskStatus.PAUSED);
+    return sortTasks(filtered, pausedSortType, customOrderPaused);
+  }, [tasks, pausedSortType, customOrderPaused, sortTasks]);
+
+  // 정렬된 필터링 태스크
+  const sortedFilteredTasks = useMemo(() => {
+    return sortTasks(filteredTasks, filteredSortType, customOrderFiltered);
+  }, [filteredTasks, filteredSortType, customOrderFiltered, sortTasks]);
+
+  // 정렬된 inbox 태스크 (showAllSections일 때 사용)
+  const sortedInboxTasks = useMemo(() => {
+    return sortTasks(filteredTasks, inboxSortType, customOrderInbox);
+  }, [filteredTasks, inboxSortType, customOrderInbox, sortTasks]);
+
+  // 드래그앤드롭 순서 변경 핸들러
+  const handlePausedReorder = useCallback((taskIds: string[]) => {
+    setCustomOrderPaused(taskIds);
+    setPausedSortType("custom");
+  }, []);
+
+  const handleInboxReorder = useCallback((taskIds: string[]) => {
+    setCustomOrderInbox(taskIds);
+    setInboxSortType("custom");
+  }, []);
+
+  const handleFilteredReorder = useCallback((taskIds: string[]) => {
+    setCustomOrderFiltered(taskIds);
+    setFilteredSortType("custom");
+  }, []);
 
   // 특정 메뉴에서는 섹션 구분 없이 표시
   const showAllSections = activeMenuId === "inbox";
   const isCompletedView = activeMenuId === "completed";
   const isArchiveView = activeMenuId === "archive";
 
-  // 상태 변경 핸들러
-  const handleStatusChange = useCallback(async (taskId: string, newStatus: TaskStatus) => {
+  // 상태 변경 핸들러 - 일시정지 시 남은 시간도 함께 저장
+  const handleStatusChange = useCallback(async (
+    taskId: string, 
+    newStatus: TaskStatus, 
+    options?: StatusChangeOptions
+  ) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
         
-        // 완료 상태로 변경 시 알림 전송
+    // 완료 상태로 변경 시 알림 전송
     if (newStatus === TaskStatus.COMPLETED && task.status !== TaskStatus.COMPLETED) {
       sendTaskCompletedNotification(task.title, task.expectedDuration);
-        }
+    }
+
+    // 완료 상태로 변경 시 남은 시간을 0으로 초기화
+    // 일시정지 시에는 options에서 전달받은 남은 시간 저장
+    let remainingTimeSeconds: number | undefined;
+    if (newStatus === TaskStatus.COMPLETED) {
+      remainingTimeSeconds = 0;
+    } else if (newStatus === TaskStatus.PAUSED && options?.remainingTimeSeconds !== undefined) {
+      remainingTimeSeconds = options.remainingTimeSeconds;
+    }
+
+    console.log("[handleStatusChange]", { taskId, newStatus, options, remainingTimeSeconds });
         
     await updateTask({
       id: taskId,
-          status: newStatus,
+      status: newStatus,
       lastPausedAt: newStatus === TaskStatus.PAUSED ? new Date().toISOString() : undefined,
       completedAt: newStatus === TaskStatus.COMPLETED ? new Date().toISOString() : undefined,
+      remainingTimeSeconds,
     });
   }, [tasks, updateTask]);
 
@@ -420,13 +505,16 @@ export const MainPage = () => {
             onExtendTime={handleExtendTime}
             onTitleChange={handleTitleChange}
             sectionType="paused"
+            sortType={pausedSortType}
+            onSortChange={setPausedSortType}
+            onTasksReorder={handlePausedReorder}
           />
 
           {/* 할일 섹션 */}
           <TaskSection
             title="할일"
-                count={filteredTasks.length}
-                tasks={filteredTasks}
+            count={sortedInboxTasks.length}
+            tasks={sortedInboxTasks}
             selectedTaskId={selectedTaskId}
             onTaskSelect={handleTaskSelect}
             onStatusChange={handleStatusChange}
@@ -444,6 +532,9 @@ export const MainPage = () => {
             onAddTask={handleAddTask}
             onCloseAddTask={handleCloseAddTask}
             sectionType="inbox"
+            sortType={inboxSortType}
+            onSortChange={setInboxSortType}
+            onTasksReorder={handleInboxReorder}
           />
             </>
           )}
@@ -452,8 +543,8 @@ export const MainPage = () => {
           {!showAllSections && (
           <TaskSection
               title={menuTitles[activeMenuId]}
-              count={filteredTasks.length}
-              tasks={filteredTasks}
+              count={sortedFilteredTasks.length}
+              tasks={sortedFilteredTasks}
               selectedTaskId={isCompletedView || isArchiveView ? undefined : selectedTaskId}
               onTaskSelect={isCompletedView || isArchiveView ? undefined : handleTaskSelect}
             onStatusChange={handleStatusChange}
@@ -471,11 +562,14 @@ export const MainPage = () => {
               onAddTask={handleAddTask}
               onCloseAddTask={handleCloseAddTask}
               sectionType={isCompletedView ? "completed" : isArchiveView ? "completed" : "inbox"}
+              sortType={filteredSortType}
+              onSortChange={setFilteredSortType}
+              onTasksReorder={handleFilteredReorder}
             />
           )}
 
           {/* 빈 상태 */}
-          {filteredTasks.length === 0 && !loading && !showAllSections && (
+          {sortedFilteredTasks.length === 0 && !loading && !showAllSections && (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="w-20 h-20 mb-6 rounded-2xl bg-slate-800/50 flex items-center justify-center">
                 <svg className="w-10 h-10 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

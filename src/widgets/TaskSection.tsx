@@ -1,8 +1,10 @@
 import { Task, TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 import { TaskList } from "@features/tasks/shared";
 import { AddTaskForm } from "@features/tasks/shared/ui/AddTaskForm";
+import type { StatusChangeOptions, SortType } from "@features/tasks/shared/types";
 import { Inbox, PlayCircle, PauseCircle, CheckCircle2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
+import { SortDropdown } from "@shared/ui";
 
 interface TaskSectionProps {
   title: string;
@@ -10,7 +12,7 @@ interface TaskSectionProps {
   tasks: Task[];
   selectedTaskId?: string;
   onTaskSelect?: (taskId: string) => void;
-  onStatusChange?: (taskId: string, status: TaskStatus) => void;
+  onStatusChange?: (taskId: string, status: TaskStatus, options?: StatusChangeOptions) => void;
   onAddMemo?: (taskId: string, memo: TaskMemo) => void;
   onAddNote?: (taskId: string, note: TaskNote) => void;
   onAddTag?: (taskId: string, tag: string) => void;
@@ -29,6 +31,12 @@ interface TaskSectionProps {
   onCloseAddTask?: () => void;
   /** 섹션 타입 (빈 상태 아이콘 결정용) */
   sectionType?: "inProgress" | "paused" | "inbox" | "completed";
+  /** 현재 정렬 타입 */
+  sortType?: SortType;
+  /** 정렬 타입 변경 핸들러 */
+  onSortChange?: (sortType: SortType) => void;
+  /** 태스크 순서 변경 핸들러 (드래그앤드롭) */
+  onTasksReorder?: (taskIds: string[]) => void;
 }
 
 // 섹션 타입에 따른 빈 상태 정보
@@ -93,16 +101,26 @@ export const TaskSection = ({
   onAddTask,
   onCloseAddTask,
   sectionType,
+  sortType = "created",
+  onSortChange,
+  onTasksReorder,
 }: TaskSectionProps) => {
   const emptyState = getEmptyStateInfo(sectionType);
   const EmptyIcon = emptyState.icon;
   const isEmpty = tasks.length === 0;
+  // 아이템이 2개 이상일 때만 정렬 드롭다운 표시
+  const showSortDropdown = tasks.length >= 2 && onSortChange;
 
   return (
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-medium text-gray-400">{title}</h2>
-        <span className="text-base font-medium text-gray-500">{count}</span>
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-medium text-gray-400">{title}</h2>
+          <span className="text-base font-medium text-gray-500">{count}</span>
+        </div>
+        {showSortDropdown && (
+          <SortDropdown value={sortType} onChange={onSortChange} />
+        )}
       </div>
 
       {/* Task 추가 폼 (할일 섹션에만 표시) */}
@@ -142,6 +160,8 @@ export const TaskSection = ({
           onArchive={onArchive}
           onExtendTime={onExtendTime}
           onTitleChange={onTitleChange}
+          enableDragDrop={sortType === "custom" || !!onTasksReorder}
+          onReorder={onTasksReorder}
         />
       )}
     </div>

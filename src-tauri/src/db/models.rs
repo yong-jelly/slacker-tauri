@@ -160,6 +160,8 @@ pub struct Task {
     pub status: TaskStatus,
     pub total_time_spent: i64,
     pub expected_duration: Option<i64>,
+    /// 일시정지 시 저장된 남은 시간 (초)
+    pub remaining_time_seconds: Option<i64>,
     pub target_date: Option<String>,
     pub is_important: bool,
     pub created_at: String,
@@ -201,6 +203,8 @@ pub struct UpdateTaskInput {
     pub status: Option<TaskStatus>,
     pub total_time_spent: Option<i64>,
     pub expected_duration: Option<i64>,
+    /// 일시정지 시 저장된 남은 시간 (초)
+    pub remaining_time_seconds: Option<i64>,
     pub target_date: Option<String>,
     pub is_important: Option<bool>,
     pub completed_at: Option<String>,

@@ -26,6 +26,64 @@ export const formatMinutes = (minutes: number): string => {
   return mins > 0 ? `${hours}시간 ${mins}분` : `${hours}시간`;
 };
 
+/**
+ * 초 단위를 사람이 읽기 쉬운 한글 형식으로 변환
+ * - 0초 → 1초
+ * - 60초 미만 → N초
+ * - 60초 이상 1시간 미만 → N분M초 (0초면 N분)
+ * - 1시간 이상 → N시간M분 (0분이면 N시간, 초는 표시 안함)
+ */
+export const formatSecondsReadable = (totalSeconds: number): string => {
+  // 0초 이하면 1초로 표시
+  if (totalSeconds <= 0) return "1초";
+  
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  // 1시간 이상
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}시간${minutes}분` : `${hours}시간`;
+  }
+  
+  // 1분 이상 1시간 미만
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}분${seconds}초` : `${minutes}분`;
+  }
+  
+  // 1분 미만
+  return `${seconds}초`;
+};
+
+/**
+ * 소비된 시간과 전체 시간을 "소비시간/전체시간" 형식으로 표시
+ * - 소비된 시간이 0이면 전체 시간만 표시
+ * - 전체 시간은 분 단위(expectedDuration), 남은 시간은 초 단위(remainingTimeSeconds)
+ */
+export const formatDurationWithSpent = (
+  expectedDurationMinutes: number,
+  remainingTimeSeconds: number | null | undefined
+): string => {
+  const totalSeconds = expectedDurationMinutes * 60;
+  const totalTimeText = formatSecondsReadable(totalSeconds);
+  
+  // 남은 시간이 없으면 전체 시간만 표시
+  if (remainingTimeSeconds === null || remainingTimeSeconds === undefined) {
+    return totalTimeText;
+  }
+  
+  // 소비된 시간 계산
+  const spentSeconds = totalSeconds - remainingTimeSeconds;
+  
+  // 소비된 시간이 0 이하면 전체 시간만 표시
+  if (spentSeconds <= 0) {
+    return totalTimeText;
+  }
+  
+  const spentTimeText = formatSecondsReadable(spentSeconds);
+  return `${spentTimeText}/${totalTimeText}`;
+};
+
 /** 목표일을 상대적 텍스트로 변환 (오늘, 내일, n일 후 등) */
 export const formatTargetDate = (date: Date): string => {
   const now = new Date();

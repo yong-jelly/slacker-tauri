@@ -13,6 +13,7 @@ interface TaskRaw {
   status: string;
   totalTimeSpent: number;
   expectedDuration?: number;
+  remainingTimeSeconds?: number;
   targetDate?: string;
   isImportant: boolean;
   createdAt: string;
@@ -40,6 +41,7 @@ function parseTask(raw: TaskRaw): Task {
     status: raw.status as TaskStatus,
     totalTimeSpent: raw.totalTimeSpent,
     expectedDuration: raw.expectedDuration,
+    remainingTimeSeconds: raw.remainingTimeSeconds,
     targetDate: raw.targetDate ? new Date(raw.targetDate) : undefined,
     isImportant: raw.isImportant,
     createdAt: new Date(raw.createdAt),
@@ -104,6 +106,7 @@ export interface UpdateTaskInput {
   status?: TaskStatus;
   totalTimeSpent?: number;
   expectedDuration?: number;
+  remainingTimeSeconds?: number;
   targetDate?: string;
   isImportant?: boolean;
   completedAt?: string;

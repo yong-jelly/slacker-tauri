@@ -2,7 +2,7 @@ import { Checkbox } from "@shared/ui";
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useCallback } from "react";
 
-import { formatMinutes, formatTargetDate, getDelayDays } from "./lib/timeFormat";
+import { formatDurationWithSpent, formatTargetDate, getDelayDays } from "./lib/timeFormat";
 import { useTaskItem } from "./hooks/useTaskItem";
 import { useBorderFlash } from "./hooks/useBorderFlash";
 import { CircularProgress } from "./ui/CircularProgress";
@@ -110,8 +110,11 @@ export const TaskItem = ({
   // 외곽 라인 플래시 이펙트
   const { showBorderFlash } = useBorderFlash({ isActive: isInProgress });
 
-  // 계산된 값들
-  const expectedDurationText = formatMinutes(task.expectedDuration ?? 5);
+  // 계산된 값들 - DB 기반 남은 시간으로 소비시간/전체시간 형식 표시
+  const expectedDurationText = formatDurationWithSpent(
+    task.expectedDuration ?? 5,
+    task.remainingTimeSeconds
+  );
   const targetDate = task.targetDate ?? new Date();
   const targetDateText = formatTargetDate(targetDate);
   const delayDays = getDelayDays(targetDate);
@@ -281,8 +284,12 @@ export const TaskItem = ({
         <AnimatePresence>
           {isPaused && !isDetailExpanded && (
             <TaskItemPausedInfo
-              lastRunAt={task.lastRunAt}
+              lastPausedAt={task.lastPausedAt}
               remainingTimeSeconds={remainingTimeSeconds}
+              expectedDurationMinutes={task.expectedDuration ?? 5}
+              delayDays={delayDays}
+              tags={task.tags}
+              isHovered={isHovered}
             />
           )}
         </AnimatePresence>
