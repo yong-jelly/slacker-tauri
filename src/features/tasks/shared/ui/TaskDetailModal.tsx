@@ -8,6 +8,19 @@ import { NoteTabContent } from "./tabs/NoteTabContent";
 import { HistoryTabContent } from "./tabs/HistoryTabContent";
 import { TimeTabContent } from "./tabs/TimeTabContent";
 
+// 천 단위 이상 숫자를 1.4k 형태로 포맷
+const formatCount = (count: number | undefined): string | undefined => {
+  if (count === undefined || count === 0) return undefined;
+  if (count >= 1000) {
+    const formatted = (count / 1000).toFixed(1);
+    // 소수점이 .0이면 제거
+    return formatted.endsWith('.0') 
+      ? `${Math.floor(count / 1000)}k` 
+      : `${formatted}k`;
+  }
+  return count.toString();
+};
+
 export interface TaskDetailModalProps {
   task: Task;
   isOpen: boolean;
@@ -71,7 +84,7 @@ export const TaskDetailModal = ({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="bg-[#1C1E22] rounded-2xl w-full max-w-lg mx-4 h-[600px] overflow-hidden shadow-2xl border border-gray-700/50 flex flex-col"
+        className="bg-[#1C1E22] rounded-2xl w-full max-w-xl mx-4 h-[600px] overflow-hidden shadow-2xl border border-gray-700/50 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 모달 헤더 */}
@@ -88,13 +101,13 @@ export const TaskDetailModal = ({
         </div>
 
         {/* 탭 네비게이션 */}
-        <div className="flex border-b border-gray-700/50">
+        <div className="flex border-b border-gray-700/50 mt-2">
           {tabs.map(({ key, label, icon: Icon, count }) => (
             <button
               key={key}
               onClick={() => onTabChange(key)}
               className={`
-                flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium transition-colors
+                flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors whitespace-nowrap
                 ${activeTab === key 
                   ? "text-[#FF6B00] border-b-2 border-[#FF6B00] bg-[#FF6B00]/5" 
                   : "text-gray-500 hover:text-gray-300"
@@ -103,11 +116,11 @@ export const TaskDetailModal = ({
             >
               <Icon className="w-4 h-4" />
               {label}
-              {(count || 0) > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+              {formatCount(count) && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] whitespace-nowrap ${
                   activeTab === key ? "bg-[#FF6B00]/20" : "bg-gray-700"
                 }`}>
-                  {count}
+                  {formatCount(count)}
                 </span>
               )}
             </button>

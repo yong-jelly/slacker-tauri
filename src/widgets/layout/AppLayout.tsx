@@ -60,7 +60,6 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
     handlePause,
   } = useTaskTimer({
     expectedDuration: inProgressTask?.expectedDuration ?? 5,
-    isInProgress: isWidgetMode && inProgressTask?.status === TaskStatus.IN_PROGRESS,
     taskTitle: inProgressTask?.title ?? "",
     onStatusChange: onTaskStatusChange,
   });
