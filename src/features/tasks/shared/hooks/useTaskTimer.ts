@@ -149,8 +149,10 @@ export const useTaskTimer = ({
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       setIsRunning(false);
-      // Rust 트레이 타이머 정지
-      await stopTrayTimer();
+      // Rust 트레이 타이머 정지하고 남은 시간 반환받기
+      const remainingSecs = await stopTrayTimer();
+      // Rust 타이머에서 반환된 남은 시간으로 동기화
+      setRemainingTimeMs(remainingSecs * 1000);
       onStatusChange?.(TaskStatus.PAUSED);
     },
     [onStatusChange]

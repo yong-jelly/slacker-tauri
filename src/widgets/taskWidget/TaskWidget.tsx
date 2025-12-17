@@ -30,7 +30,7 @@ export const TaskWidget = ({ task }: TaskWidgetProps) => {
     urgencyLevel,
   } = useTaskTimer({
     expectedDuration: task.expectedDuration ?? 5,
-    initialRunning: true,
+    isInProgress: true,
     taskTitle: task.title,
   });
 
