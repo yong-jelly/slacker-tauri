@@ -42,7 +42,6 @@ export const SortDropdown = ({ value, onChange, disabled }: SortDropdownProps) =
     setIsOpen(false);
   };
 
-  const CurrentIcon = SORT_ICONS[value];
   const sortOptions: SortType[] = ["created", "remainingTime", "title", "custom"];
 
   return (

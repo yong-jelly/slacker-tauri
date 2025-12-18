@@ -19,7 +19,7 @@ export const TaskItemPausedInfo = ({
   lastPausedAt,
   remainingTimeSeconds,
   expectedDurationMinutes,
-  delayDays,
+  delayDays: _delayDays,
   tags,
   isHovered,
 }: TaskItemPausedInfoProps) => {
@@ -28,7 +28,6 @@ export const TaskItemPausedInfo = ({
   
   const spentTimeText = formatSecondsReadable(spentSeconds);
   const totalTimeText = formatSecondsReadable(totalSeconds);
-  const isDelayed = delayDays > 0;
 
   return (
     <motion.div

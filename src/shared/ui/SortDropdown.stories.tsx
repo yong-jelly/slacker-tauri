@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+// import { fn } from "@storybook/test";
 import { useState } from "react";
 import { SortDropdown } from "./SortDropdown";
 import type { SortType } from "@features/tasks/shared/types";
@@ -19,6 +20,9 @@ const meta = {
     },
   },
   tags: ["autodocs"],
+  args: {
+    onChange: () => {},
+  },
   argTypes: {
     value: {
       control: "select",
@@ -81,6 +85,10 @@ export const Disabled: Story = {
 
 /** 인터랙티브 예시 - 상태 변경 가능 */
 export const Interactive: Story = {
+  args: {
+    value: "created",
+    disabled: false,
+  },
   render: function InteractiveComponent() {
     const [sortType, setSortType] = useState<SortType>("created");
     
@@ -97,6 +105,10 @@ export const Interactive: Story = {
 
 /** 섹션 헤더와 함께 사용하는 예시 */
 export const WithSectionHeader: Story = {
+  args: {
+    value: "created",
+    disabled: false,
+  },
   render: function SectionHeaderExample() {
     const [sortType, setSortType] = useState<SortType>("created");
     

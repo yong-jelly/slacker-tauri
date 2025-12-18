@@ -55,7 +55,7 @@ fi
 # 5. 결과 요약
 echo ""
 echo -e "${GREEN}🎉 빌드 완료!${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"x
 echo -e "  📦 DMG: ${DMG_DEST}"
 echo -e "  📁 앱: src-tauri/target/release/bundle/macos/slacker.app"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
