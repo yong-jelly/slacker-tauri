@@ -33,9 +33,6 @@ interface AppLayoutProps {
 
 // Widget 모드 창 크기 (고정)
 const WIDGET_SIZE = { width: 300, height: 180 };
-// 창 크기 변경 애니메이션 설정
-const RESIZE_ANIMATION_STEPS = 16;
-const RESIZE_ANIMATION_DURATION = 300; // ms
 
 // 색상 상수
 const COLORS = {
@@ -69,25 +66,6 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
     onStatusChange: onTaskStatusChange,
   });
 
-  // 창 크기를 부드럽게 애니메이션하는 함수
-  const animateWindowSize = useCallback(async (
-    fromSize: { width: number; height: number },
-    toSize: { width: number; height: number }
-  ) => {
-    const stepDelay = RESIZE_ANIMATION_DURATION / RESIZE_ANIMATION_STEPS;
-    
-    for (let i = 1; i <= RESIZE_ANIMATION_STEPS; i++) {
-      // easeOutCubic 이징 함수
-      const t = i / RESIZE_ANIMATION_STEPS;
-      const eased = 1 - Math.pow(1 - t, 3);
-      
-      const currentWidth = Math.round(fromSize.width + (toSize.width - fromSize.width) * eased);
-      const currentHeight = Math.round(fromSize.height + (toSize.height - fromSize.height) * eased);
-      
-      await appWindow.setSize(new LogicalSize(currentWidth, currentHeight));
-      await new Promise(resolve => setTimeout(resolve, stepDelay));
-    }
-  }, [appWindow]);
 
   // Mock 사용자 데이터
   const mockUser = {

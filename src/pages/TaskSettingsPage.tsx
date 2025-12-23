@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { X, MessageSquare, FileText, Timer, History } from "lucide-react";
-import { Task, TaskRunHistory, TimeExtensionHistory, TaskActionHistory, TaskMemo, TaskNote } from "@entities/task";
+import { Task } from "@entities/task";
 import type { ModalTabType } from "@features/tasks/shared/types";
 import { MemoTabContent } from "@features/tasks/shared/ui/tabs/MemoTabContent";
 import { NoteTabContent } from "@features/tasks/shared/ui/tabs/NoteTabContent";
