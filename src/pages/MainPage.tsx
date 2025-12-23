@@ -453,8 +453,20 @@ export const MainPage = () => {
     }
   }, [navigate, isAddingTask, tasks, activeMenuId, pauseAllInProgressTasks]);
 
-  // 현재 진행중인 Task (하나만 있다고 가정)
-  const currentInProgressTask = inProgressTasks.length > 0 ? inProgressTasks[0] : null;
+  // 현재 진행중이거나 일시정지된 Task (위젯 모드용)
+  // 진행중인 태스크가 있으면 우선, 없으면 일시정지된 태스크 중 가장 최근에 실행된 것 선택
+  const currentInProgressTask = useMemo(() => {
+    if (inProgressTasks.length > 0) {
+      return inProgressTasks[0];
+    }
+    // 일시정지된 태스크 중 가장 최근에 실행된 것 (lastRunAt 기준)
+    const sortedPaused = [...pausedTasks].sort((a, b) => {
+      const aTime = a.lastRunAt ? new Date(a.lastRunAt).getTime() : 0;
+      const bTime = b.lastRunAt ? new Date(b.lastRunAt).getTime() : 0;
+      return bTime - aTime;
+    });
+    return sortedPaused.length > 0 ? sortedPaused[0] : null;
+  }, [inProgressTasks, pausedTasks]);
 
   // Widget 모드에서 Task 상태 변경 핸들러
   const handleWidgetStatusChange = useCallback((status: TaskStatus) => {

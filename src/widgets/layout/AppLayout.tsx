@@ -440,10 +440,10 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
     }
   }, [isWidgetMode, isTransitioning, appWindow, convertPhysicalToLogical, convertPhysicalToLogicalPosition, validateAndAdjustPosition]);
 
-  // Widget 모드에서 Play 중인 Task가 없으면 자동으로 일반 모드로 복귀
+  // Widget 모드에서 진행중이거나 일시정지된 Task가 없으면 자동으로 일반 모드로 복귀
   // 토글 대신 명시적 종료 함수를 사용하여 play 시 다시 위젯으로 전환되는 것을 방지
   useEffect(() => {
-    if (isWidgetMode && (!inProgressTask || inProgressTask.status !== TaskStatus.IN_PROGRESS)) {
+    if (isWidgetMode && (!inProgressTask || (inProgressTask.status !== TaskStatus.IN_PROGRESS && inProgressTask.status !== TaskStatus.PAUSED))) {
       exitWidgetMode();
     }
   }, [isWidgetMode, inProgressTask, exitWidgetMode]);
@@ -458,7 +458,8 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
   }, [onTaskStatusChange, exitWidgetMode]);
 
   // Widget 모드 UI - 중앙 정렬, 미니멀하고 차분한 디자인
-  if (isWidgetMode && inProgressTask) {
+  // 진행중이거나 일시정지된 태스크가 있을 때만 위젯 모드 UI 표시
+  if (isWidgetMode && inProgressTask && (inProgressTask.status === TaskStatus.IN_PROGRESS || inProgressTask.status === TaskStatus.PAUSED)) {
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -718,8 +719,8 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
 
           {/* Widget 모드 버튼 + 새 할일 추가 버튼 */}
           <div className="titlebar-buttons flex items-center gap-2 pr-4">
-            {/* Widget 모드 버튼 (진행중인 Task가 있을 때만 표시) */}
-            {inProgressTask && inProgressTask.status === TaskStatus.IN_PROGRESS && (
+            {/* Widget 모드 버튼 (진행중이거나 일시정지된 Task가 있을 때만 표시) */}
+            {inProgressTask && (inProgressTask.status === TaskStatus.IN_PROGRESS || inProgressTask.status === TaskStatus.PAUSED) && (
               <button
                 onClick={handleToggleWidgetMode}
                 className="p-2 rounded-lg text-gray-400 hover:text-[#FF6B00] hover:bg-[#FF6B00]/10 transition-all"
