@@ -1,5 +1,6 @@
 import { useState, useEffect, ReactNode, useCallback } from "react";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalSize, LogicalPosition } from "@tauri-apps/api/window";
+import { currentMonitor, availableMonitors, primaryMonitor } from "@tauri-apps/api/window";
 import { PanelLeftClose, PanelLeft, LayoutGrid, Maximize2, Pause } from "lucide-react";
 import { motion } from "motion/react";
 import { Sidebar, type SidebarMenuId } from "./Sidebar";
@@ -9,6 +10,7 @@ import { Task, TaskStatus } from "@entities/task";
 import { formatTimeMs } from "@features/tasks/shared/lib/timeFormat";
 import { useTaskTimer } from "@features/tasks/shared/hooks/useTaskTimer";
 import { type SidebarCounts } from "@shared/hooks";
+import { saveWindowState, loadWindowState, getDefaultWindowState } from "@shared/lib/windowStateStorage";
 
 // 태스크 목록 메뉴 ID 목록
 const TASK_LIST_MENU_IDS: SidebarMenuId[] = ["inbox", "completed", "starred", "today", "tomorrow", "overdue", "archive"];
@@ -29,10 +31,8 @@ interface AppLayoutProps {
   sidebarCounts?: SidebarCounts;
 }
 
-// Widget 모드 창 크기 (컴팩트)
-const WIDGET_SIZE = { width: 220, height: 140 };
-// 일반 모드 창 크기
-const NORMAL_SIZE = { width: 700, height: 800 };
+// Widget 모드 창 크기 (고정)
+const WIDGET_SIZE = { width: 300, height: 300 };
 // 창 크기 변경 애니메이션 설정
 const RESIZE_ANIMATION_STEPS = 16;
 const RESIZE_ANIMATION_DURATION = 300; // ms
@@ -60,6 +60,7 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
     handlePause,
   } = useTaskTimer({
     expectedDuration: inProgressTask?.expectedDuration ?? 5,
+    savedRemainingTimeSeconds: inProgressTask?.remainingTimeSeconds,
     isInProgress: !!inProgressTask,
     taskTitle: inProgressTask?.title ?? "",
     onStatusChange: onTaskStatusChange,
@@ -117,38 +118,324 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
   const handleMinimize = () => appWindow.minimize();
   const handleMaximize = () => appWindow.toggleMaximize();
 
+  // 저장된 위치가 유효한 모니터 범위 내에 있는지 확인하고 조정하는 함수
+  const validateAndAdjustPosition = useCallback(async (
+    position: { x: number; y: number },
+    size: { width: number; height: number }
+  ): Promise<{ x: number; y: number }> => {
+    try {
+      const monitors = await availableMonitors();
+      if (!monitors || monitors.length === 0) {
+        console.warn("No monitors available, returning original position");
+        return position;
+      }
+
+      // 저장된 위치가 어떤 모니터 범위 내에 있는지 확인
+      for (const monitor of monitors) {
+        const monitorX = monitor.position.x;
+        const monitorY = monitor.position.y;
+        const monitorWidth = monitor.size.width;
+        const monitorHeight = monitor.size.height;
+
+        // 창이 모니터 범위 내에 있는지 확인 (일부라도 보이면 유효)
+        const windowRight = position.x + size.width;
+        const windowBottom = position.y + size.height;
+        const monitorRight = monitorX + monitorWidth;
+        const monitorBottom = monitorY + monitorHeight;
+
+        // 창이 모니터와 겹치는지 확인
+        if (
+          position.x < monitorRight &&
+          windowRight > monitorX &&
+          position.y < monitorBottom &&
+          windowBottom > monitorY
+        ) {
+          // 유효한 모니터 범위 내에 있음
+          // 화면 밖으로 나가지 않도록 조정
+          const adjustedX = Math.max(monitorX, Math.min(position.x, monitorRight - size.width));
+          const adjustedY = Math.max(monitorY, Math.min(position.y, monitorBottom - size.height));
+          
+          if (adjustedX !== position.x || adjustedY !== position.y) {
+            console.log("Adjusted position to fit within monitor:", {
+              original: position,
+              adjusted: { x: adjustedX, y: adjustedY },
+              monitor: { x: monitorX, y: monitorY, width: monitorWidth, height: monitorHeight }
+            });
+          }
+          
+          return { x: adjustedX, y: adjustedY };
+        }
+      }
+
+      // 어떤 모니터 범위에도 없으면 현재 모니터 또는 기본 모니터의 안전한 위치로 이동
+      const currentMon = await currentMonitor();
+      const targetMonitor = currentMon || (await primaryMonitor()) || monitors[0];
+      
+      if (targetMonitor) {
+        const safeX = targetMonitor.position.x + 50; // 안전 여백
+        const safeY = targetMonitor.position.y + 50;
+        
+        console.log("Position not in any monitor, moving to safe position:", {
+          original: position,
+          safe: { x: safeX, y: safeY },
+          monitor: {
+            x: targetMonitor.position.x,
+            y: targetMonitor.position.y,
+            width: targetMonitor.size.width,
+            height: targetMonitor.size.height
+          }
+        });
+        
+        return { x: safeX, y: safeY };
+      }
+
+      // 모니터 정보를 가져올 수 없으면 원래 위치 반환
+      return position;
+    } catch (error) {
+      console.error("Failed to validate position:", error);
+      return position;
+    }
+  }, []);
+
   // Widget 모드 명시적 종료 (토글이 아닌 단방향)
   const exitWidgetMode = useCallback(async () => {
     if (!isWidgetMode || isTransitioning) return;
     
     setIsTransitioning(true);
-    await animateWindowSize(WIDGET_SIZE, NORMAL_SIZE);
-    await appWindow.setAlwaysOnTop(false);
-    setIsWidgetMode(false);
-    setIsTransitioning(false);
-  }, [isWidgetMode, isTransitioning, appWindow, animateWindowSize]);
-
-  // Widget 모드 토글 핸들러 (애니메이션 포함)
-  const handleToggleWidgetMode = useCallback(async () => {
-    if (isTransitioning) return;
     
-    const newWidgetMode = !isWidgetMode;
-    setIsTransitioning(true);
-    
-    if (newWidgetMode) {
-      // Widget 모드로 전환: 창 크기 축소
-      setIsWidgetMode(true);
-      await appWindow.setAlwaysOnTop(true);
-      await animateWindowSize(NORMAL_SIZE, WIDGET_SIZE);
-    } else {
-      // 일반 모드로 복귀: 창 크기 확대
-      await animateWindowSize(WIDGET_SIZE, NORMAL_SIZE);
+    try {
+      // 저장된 상태 불러오기 (없으면 기본값 사용)
+      const savedState = loadWindowState();
+      const restoreState = savedState || getDefaultWindowState();
+      
+      console.log("ExitWidgetMode: Restoring window state:", restoreState);
+      
+      // 먼저 resizable 활성화 (크기 변경을 위해)
+      await appWindow.setResizable(true);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // alwaysOnTop 해제
       await appWindow.setAlwaysOnTop(false);
+      console.log("ExitWidgetMode: AlwaysOnTop set to false");
+      
+      // 창 크기 복원 (애니메이션 없이 즉시)
+      await appWindow.setSize(new LogicalSize(restoreState.size.width, restoreState.size.height));
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // 위치 복원 (기본 위치가 아닌 경우)
+      if (restoreState.position.x >= 0 && restoreState.position.y >= 0) {
+        // 다중 모니터 환경에서 위치 유효성 검증 및 조정
+        const validatedPosition = await validateAndAdjustPosition(
+          restoreState.position,
+          restoreState.size
+        );
+        await appWindow.setPosition(new LogicalPosition(validatedPosition.x, validatedPosition.y));
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
       setIsWidgetMode(false);
+      console.log("ExitWidgetMode: Normal mode restored");
+    } catch (error) {
+      console.error("Exit widget mode error:", error);
+    } finally {
+      setIsTransitioning(false);
+    }
+  }, [isWidgetMode, isTransitioning, appWindow, validateAndAdjustPosition]);
+
+  // PhysicalSize를 LogicalSize로 변환하는 함수 (DPI 스케일링 고려)
+  const convertPhysicalToLogical = useCallback(async (
+    physicalSize: { width: number; height: number }
+  ): Promise<{ width: number; height: number }> => {
+    try {
+      const monitor = await currentMonitor();
+      if (!monitor) {
+        // 모니터 정보를 가져올 수 없으면 그대로 반환 (변환 불가)
+        console.warn("Cannot get monitor info, returning physical size as-is");
+        return physicalSize;
+      }
+      
+      const scaleFactor = monitor.scaleFactor;
+      return {
+        width: Math.round(physicalSize.width / scaleFactor),
+        height: Math.round(physicalSize.height / scaleFactor),
+      };
+    } catch (error) {
+      console.error("Failed to convert physical to logical size:", error);
+      return physicalSize;
+    }
+  }, []);
+
+  // PhysicalPosition을 LogicalPosition으로 변환하는 함수 (DPI 스케일링 고려)
+  const convertPhysicalToLogicalPosition = useCallback(async (
+    physicalPosition: { x: number; y: number }
+  ): Promise<{ x: number; y: number }> => {
+    try {
+      const monitor = await currentMonitor();
+      if (!monitor) {
+        // 모니터 정보를 가져올 수 없으면 그대로 반환 (변환 불가)
+        console.warn("Cannot get monitor info, returning physical position as-is");
+        return physicalPosition;
+      }
+      
+      const scaleFactor = monitor.scaleFactor;
+      return {
+        x: Math.round(physicalPosition.x / scaleFactor),
+        y: Math.round(physicalPosition.y / scaleFactor),
+      };
+    } catch (error) {
+      console.error("Failed to convert physical to logical position:", error);
+      return physicalPosition;
+    }
+  }, []);
+
+  // Widget 모드 토글 핸들러
+  const handleToggleWidgetMode = useCallback(async () => {
+    if (isTransitioning) {
+      console.log("Widget mode toggle: Already transitioning, skipping");
+      return;
     }
     
-    setIsTransitioning(false);
-  }, [isWidgetMode, isTransitioning, appWindow, animateWindowSize]);
+    const newWidgetMode = !isWidgetMode;
+    console.log("Widget mode toggle:", { from: isWidgetMode, to: newWidgetMode });
+    setIsTransitioning(true);
+    
+    try {
+      if (newWidgetMode) {
+        // Widget 모드로 전환: 현재 상태 저장 후 크기 고정
+        const currentPhysicalSize = await appWindow.outerSize();
+        const currentPhysicalPosition = await appWindow.outerPosition();
+        
+        // PhysicalSize를 LogicalSize로 변환 (DPI 스케일링 제거)
+        const logicalSize = await convertPhysicalToLogical({
+          width: currentPhysicalSize.width,
+          height: currentPhysicalSize.height,
+        });
+        
+        // PhysicalPosition을 LogicalPosition으로 변환 (DPI 스케일링 제거)
+        const logicalPosition = await convertPhysicalToLogicalPosition({
+          x: currentPhysicalPosition.x,
+          y: currentPhysicalPosition.y,
+        });
+        
+        // 비정상적으로 큰 크기는 저장하지 않음 (DPI 스케일링 문제 방지)
+        // 최대 크기 제한: 2000x2000 (일반적으로 이보다 큰 창은 없음)
+        const MAX_REASONABLE_SIZE = 2000;
+        const sizeToSave = {
+          width: logicalSize.width > MAX_REASONABLE_SIZE ? 700 : logicalSize.width,
+          height: logicalSize.height > MAX_REASONABLE_SIZE ? 800 : logicalSize.height,
+        };
+        
+        console.log("Saving window state:", { 
+          physical: { 
+            size: { width: currentPhysicalSize.width, height: currentPhysicalSize.height },
+            position: { x: currentPhysicalPosition.x, y: currentPhysicalPosition.y }
+          },
+          logical: {
+            size: logicalSize,
+            position: logicalPosition
+          },
+          saved: {
+            size: sizeToSave,
+            position: logicalPosition
+          }
+        });
+        
+        // 현재 상태 저장 (LogicalSize/LogicalPosition 사용하여 DPI 일관성 유지)
+        saveWindowState({
+          size: sizeToSave,
+          position: logicalPosition,
+          resizable: true, // 일반 모드는 항상 resizable
+        });
+        
+        // Widget 모드로 전환
+        setIsWidgetMode(true);
+        
+        // 창이 보이도록 보장
+        await appWindow.show();
+        try {
+          await appWindow.unminimize();
+        } catch (error) {
+          // unminimize 실패해도 계속 진행 (이미 최소화되지 않았을 수 있음)
+          console.log("unminimize failed (may already be unminimized):", error);
+        }
+        
+        // resizable을 먼저 활성화하여 크기 변경 가능하도록 함
+        await appWindow.setResizable(true);
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // 크기를 변경 (애니메이션 없이 즉시)
+        console.log("Setting widget size:", WIDGET_SIZE);
+        await appWindow.setSize(new LogicalSize(WIDGET_SIZE.width, WIDGET_SIZE.height));
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // 크기 변경 확인 및 재시도
+        let actualSize = await appWindow.outerSize();
+        let retryCount = 0;
+        while ((Math.abs(actualSize.width - WIDGET_SIZE.width) > 1 || Math.abs(actualSize.height - WIDGET_SIZE.height) > 1) && retryCount < 3) {
+          retryCount++;
+          console.log(`Size not applied correctly (attempt ${retryCount}/3), retrying...`, { 
+            expected: WIDGET_SIZE, 
+            actual: { width: actualSize.width, height: actualSize.height } 
+          });
+          await appWindow.setSize(new LogicalSize(WIDGET_SIZE.width, WIDGET_SIZE.height));
+          await new Promise(resolve => setTimeout(resolve, 100));
+          actualSize = await appWindow.outerSize();
+        }
+        
+        console.log("Final widget size:", { width: actualSize.width, height: actualSize.height });
+        
+        // 위치는 현재 위치 유지 (설정에 따라 변경하지 않음)
+        
+        // alwaysOnTop 설정
+        await appWindow.setAlwaysOnTop(true);
+        console.log("AlwaysOnTop set to true");
+        
+        // 창 크기 고정
+        await appWindow.setResizable(false);
+        console.log("Resizable set to false");
+        
+        // 포커스 설정
+        await appWindow.setFocus();
+        console.log("Widget mode enabled");
+      } else {
+        // 일반 모드로 복귀: 저장된 상태 복원
+        const savedState = loadWindowState();
+        const restoreState = savedState || getDefaultWindowState();
+        
+        console.log("Restoring window state:", restoreState);
+        
+        // 먼저 resizable 활성화 (크기 변경을 위해)
+        await appWindow.setResizable(true);
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // alwaysOnTop 해제
+        await appWindow.setAlwaysOnTop(false);
+        console.log("AlwaysOnTop set to false");
+        
+        // 창 크기 복원 (LogicalSize 사용하여 DPI 일관성 유지)
+        await appWindow.setSize(new LogicalSize(restoreState.size.width, restoreState.size.height));
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // 위치 복원 (기본 위치가 아닌 경우)
+        if (restoreState.position.x >= 0 && restoreState.position.y >= 0) {
+          // 다중 모니터 환경에서 위치 유효성 검증 및 조정
+          const validatedPosition = await validateAndAdjustPosition(
+            restoreState.position,
+            restoreState.size
+          );
+          await appWindow.setPosition(new LogicalPosition(validatedPosition.x, validatedPosition.y));
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        setIsWidgetMode(false);
+        console.log("Normal mode restored");
+      }
+    } catch (error) {
+      console.error("Widget mode toggle error:", error);
+    } finally {
+      setIsTransitioning(false);
+    }
+  }, [isWidgetMode, isTransitioning, appWindow, convertPhysicalToLogical, convertPhysicalToLogicalPosition, validateAndAdjustPosition]);
 
   // Widget 모드에서 Play 중인 Task가 없으면 자동으로 일반 모드로 복귀
   // 토글 대신 명시적 종료 함수를 사용하여 play 시 다시 위젯으로 전환되는 것을 방지

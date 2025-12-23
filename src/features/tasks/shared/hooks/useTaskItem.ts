@@ -115,8 +115,6 @@ export const useTaskItem = ({
   const isPaused = task.status === TaskStatus.PAUSED;
   const isInbox = task.status === TaskStatus.INBOX;
 
-  console.log("[useTaskItem] task.remainingTimeSeconds:", task.remainingTimeSeconds, "status:", task.status);
-
   // 타이머 훅 - DB에 저장된 남은 시간이 있으면 사용
   const {
     remainingTimeMs,

@@ -132,6 +132,7 @@ fn main() {
             stop_tray_timer,
             get_remaining_time,
             sync_tray_timer,
+            update_tray_timer,
             // DB 관리 커맨드
             get_db_status,
             init_db,
@@ -226,18 +227,43 @@ async fn start_tray_timer(
 }
 
 // 트레이 타이머 정지 (Pause/Stop 시 호출)
+// 실행 중인 task가 없을 때만 "Slacker"로 변경하도록 프론트엔드에서 처리
 #[tauri::command]
 async fn stop_tray_timer(
     state: tauri::State<'_, SharedTimerState>,
     app: AppHandle,
+    update_to_slacker: Option<bool>,
 ) -> Result<u64, String> {
     let mut timer = state.lock().await;
     timer.is_running = false;
     let remaining = timer.remaining_secs;
     
-    update_tray(&app, "Slacker");
+    // update_to_slacker가 true일 때만 "Slacker"로 변경 (기본값은 false)
+    if update_to_slacker.unwrap_or(false) {
+        update_tray(&app, "Slacker");
+    }
     
     Ok(remaining)
+}
+
+// 트레이 타이머 업데이트 (다른 실행 중인 task로 전환 시)
+#[tauri::command]
+async fn update_tray_timer(
+    state: tauri::State<'_, SharedTimerState>,
+    app: AppHandle,
+    remaining_secs: u64,
+    task_title: String,
+) -> Result<(), String> {
+    let mut timer = state.lock().await;
+    timer.remaining_secs = remaining_secs;
+    timer.task_title = task_title.clone();
+    timer.is_running = true;
+    
+    // 즉시 트레이 업데이트
+    let title = format_tray_title(&task_title, remaining_secs);
+    update_tray(&app, &title);
+    
+    Ok(())
 }
 
 // 현재 남은 시간 조회 (포그라운드 복귀 시 호출)

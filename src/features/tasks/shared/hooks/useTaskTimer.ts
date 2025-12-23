@@ -60,23 +60,69 @@ export const useTaskTimer = ({
   const [remainingTimeMs, setRemainingTimeMs] = useState(getInitialRemainingMs);
   const [isRunning, setIsRunning] = useState(isInProgress);
   const timerEndedRef = useRef(false);
+  
+  // expectedDuration이 변경되면 timerDurationMs도 업데이트하고, 필요시 remainingTimeMs도 조정
+  useEffect(() => {
+    const newExpectedDurationMs = expectedDuration * 60 * 1000;
+    const newTimerDurationMs = defaultDuration ? defaultDuration * 1000 : newExpectedDurationMs;
+    
+    // 실행 중이 아니고, 저장된 남은 시간이 없거나 0이면 전체 시간으로 리셋
+    if (!isRunning) {
+      if (savedRemainingTimeSeconds != null && savedRemainingTimeSeconds > 0) {
+        // 저장된 남은 시간이 있으면 그대로 사용
+        setRemainingTimeMs(savedRemainingTimeSeconds * 1000);
+      } else {
+        // 저장된 남은 시간이 없으면 새로운 전체 시간으로 리셋
+        setRemainingTimeMs(newTimerDurationMs);
+      }
+    }
+  }, [expectedDuration, defaultDuration, savedRemainingTimeSeconds, isRunning]);
 
   // savedRemainingTimeSeconds가 변경되면 (DB에서 새로 로드된 경우) 상태 동기화
-  // 단, 현재 실행 중이 아닐 때만 (일시정지 상태에서 컴포넌트가 새로 마운트된 경우)
+  // 실행 중이 아닐 때: DB 값으로 동기화
+  // 실행 중일 때: Rust 트레이 타이머와 동기화 (단일 소스)
   useEffect(() => {
     console.log("[useTaskTimer] savedRemainingTimeSeconds:", savedRemainingTimeSeconds, "isRunning:", isRunning);
-    if (!isRunning && savedRemainingTimeSeconds != null && savedRemainingTimeSeconds > 0) {
-      console.log("[useTaskTimer] Setting remainingTimeMs to:", savedRemainingTimeSeconds * 1000);
-      setRemainingTimeMs(savedRemainingTimeSeconds * 1000);
+    if (!isRunning) {
+      if (savedRemainingTimeSeconds != null && savedRemainingTimeSeconds > 0) {
+        console.log("[useTaskTimer] Setting remainingTimeMs to:", savedRemainingTimeSeconds * 1000);
+        setRemainingTimeMs(savedRemainingTimeSeconds * 1000);
+      } else {
+        // null이거나 0 이하일 때는 전체 시간으로 리셋
+        const newTimerDurationMs = defaultDuration ? defaultDuration * 1000 : expectedDuration * 60 * 1000;
+        console.log("[useTaskTimer] Resetting to timerDurationMs:", newTimerDurationMs);
+        setRemainingTimeMs(newTimerDurationMs);
+      }
+    } else {
+      // 실행 중일 때는 Rust 트레이 타이머와 동기화 (위젯 모드와 일반 모드 동기화를 위해)
+      const syncWithRustTimer = async () => {
+        try {
+          const [remainingSecs, running] = await getRemainingTime();
+          if (running) {
+            setRemainingTimeMs(remainingSecs * 1000);
+          } else {
+            setIsRunning(false);
+            setRemainingTimeMs(Math.max(0, remainingSecs * 1000));
+          }
+        } catch (error) {
+          console.error("[useTaskTimer] Failed to sync with Rust timer:", error);
+        }
+      };
+      syncWithRustTimer();
     }
-  }, [savedRemainingTimeSeconds, isRunning]);
+  }, [savedRemainingTimeSeconds, isRunning, expectedDuration, defaultDuration]);
 
   // 초 단위
   const remainingTimeSeconds = Math.ceil(remainingTimeMs / 1000);
 
+  // timerDurationMs를 동적으로 계산 (expectedDuration 변경 시 반영)
+  const currentTimerDurationMs = useMemo(() => {
+    return defaultDuration ? defaultDuration * 1000 : expectedDuration * 60 * 1000;
+  }, [expectedDuration, defaultDuration]);
+
   const progress = useMemo(
-    () => remainingTimeMs / timerDurationMs,
-    [remainingTimeMs, timerDurationMs]
+    () => remainingTimeMs / currentTimerDurationMs,
+    [remainingTimeMs, currentTimerDurationMs]
   );
 
   const completedProgress = useMemo(() => 1 - progress, [progress]);
@@ -85,21 +131,34 @@ export const useTaskTimer = ({
 
   // Rust 타이머 종료 이벤트 수신
   useEffect(() => {
+    let unlistenFn: (() => void) | null = null;
+    
     const setupListener = async () => {
-      const unlisten = await listen("timer-ended", () => {
-        if (taskTitle) {
-          sendTimerEndedNotification(taskTitle);
-        }
-        onTimerEnd?.();
-        setRemainingTimeMs(0);
-        setIsRunning(false);
-      });
-      return unlisten;
+      try {
+        const unlisten = await listen("timer-ended", () => {
+          if (taskTitle) {
+            sendTimerEndedNotification(taskTitle);
+          }
+          onTimerEnd?.();
+          setRemainingTimeMs(0);
+          setIsRunning(false);
+        });
+        unlistenFn = unlisten;
+      } catch (error) {
+        console.error("[useTaskTimer] Failed to setup timer-ended listener:", error);
+      }
     };
 
-    const cleanup = setupListener();
+    setupListener();
+    
     return () => {
-      cleanup.then((unlisten) => unlisten());
+      if (unlistenFn) {
+        try {
+          unlistenFn();
+        } catch (error) {
+          console.error("[useTaskTimer] Failed to cleanup timer-ended listener:", error);
+        }
+      }
     };
   }, [taskTitle, onTimerEnd]);
 
@@ -136,19 +195,51 @@ export const useTaskTimer = ({
     }
   }, [remainingTimeMs, isRunning]);
 
-  // 10ms 간격으로 UI 타이머 업데이트 (포그라운드일 때만)
+  // 실행 중일 때 Rust 트레이 타이머와 주기적으로 동기화 (위젯 모드와 일반 모드 동기화를 위해)
+  // Rust 타이머를 단일 소스로 사용하여 정확한 동기화 보장
   useEffect(() => {
     if (!isRunning || remainingTimeMs <= 0) return;
 
-    const timer = setInterval(() => {
-      setRemainingTimeMs((prev) => Math.max(0, prev - 10));
-    }, 10);
+    // 100ms마다 Rust 트레이 타이머와 동기화 (부드러운 UI 업데이트와 정확성 모두 확보)
+    const syncInterval = setInterval(async () => {
+      try {
+        const [remainingSecs, running] = await getRemainingTime();
+        if (running) {
+          // Rust 타이머가 실행 중이면 그 시간으로 동기화
+          setRemainingTimeMs(remainingSecs * 1000);
+        } else {
+          // Rust 타이머가 멈춰있으면 상태 동기화
+          setIsRunning(false);
+          setRemainingTimeMs(Math.max(0, remainingSecs * 1000));
+        }
+      } catch (error) {
+        console.error("[useTaskTimer] Failed to sync with Rust timer:", error);
+        // 에러 발생 시 로컬 타이머로 폴백 (10ms 감소)
+        setRemainingTimeMs((prev) => Math.max(0, prev - 10));
+      }
+    }, 100);
 
-    return () => clearInterval(timer);
+    return () => clearInterval(syncInterval);
   }, [isRunning, remainingTimeMs]);
 
+  // isInProgress가 변경될 때 Rust 트레이 타이머와 동기화
   useEffect(() => {
     setIsRunning(isInProgress);
+    
+    // 실행 중으로 변경될 때 Rust 트레이 타이머와 동기화
+    if (isInProgress) {
+      const syncWithRustTimer = async () => {
+        const [remainingSecs, running] = await getRemainingTime();
+        if (running) {
+          // Rust 타이머가 실행 중이면 그 시간으로 동기화
+          setRemainingTimeMs(remainingSecs * 1000);
+        } else if (remainingSecs > 0) {
+          // Rust 타이머가 멈춰있지만 남은 시간이 있으면 그 시간 사용
+          setRemainingTimeMs(remainingSecs * 1000);
+        }
+      };
+      syncWithRustTimer();
+    }
   }, [isInProgress]);
 
   const handlePlay = useCallback(
@@ -156,11 +247,12 @@ export const useTaskTimer = ({
       e.stopPropagation();
       
       let newRemainingMs = remainingTimeMs;
-      console.log("[handlePlay] Current remainingTimeMs:", remainingTimeMs, "timerDurationMs:", timerDurationMs);
+      const currentTimerDurationMs = defaultDuration ? defaultDuration * 1000 : expectedDuration * 60 * 1000;
+      console.log("[handlePlay] Current remainingTimeMs:", remainingTimeMs, "timerDurationMs:", currentTimerDurationMs);
       if (remainingTimeMs === 0) {
-        newRemainingMs = timerDurationMs;
-        setRemainingTimeMs(timerDurationMs);
-        console.log("[handlePlay] Reset to timerDurationMs:", timerDurationMs);
+        newRemainingMs = currentTimerDurationMs;
+        setRemainingTimeMs(currentTimerDurationMs);
+        console.log("[handlePlay] Reset to timerDurationMs:", currentTimerDurationMs);
       }
       
       setIsRunning(true);
@@ -169,7 +261,7 @@ export const useTaskTimer = ({
       await startTrayTimer(Math.ceil(newRemainingMs / 1000), taskTitle || "");
       onStatusChange?.(TaskStatus.IN_PROGRESS);
     },
-    [onStatusChange, remainingTimeMs, timerDurationMs, taskTitle]
+    [onStatusChange, remainingTimeMs, expectedDuration, defaultDuration, taskTitle]
   );
 
   const handlePause = useCallback(

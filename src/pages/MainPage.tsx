@@ -4,6 +4,7 @@ import { Task, TaskStatus, TaskPriority, TaskMemo, TaskNote, TimeExtensionHistor
 import { TaskSection, AppLayout } from "@widgets/index";
 import { openTaskWindow } from "@shared/lib/openTaskWindow";
 import { requestNotificationPermission, sendTaskCompletedNotification } from "@shared/lib/notification";
+import { stopTrayTimer } from "@shared/lib/tray";
 import { useTasks, useSidebarCounts } from "@shared/hooks";
 import { type SidebarMenuId } from "@widgets/layout/Sidebar";
 import type { StatusChangeOptions, SortType } from "@features/tasks/shared/types";
@@ -119,6 +120,36 @@ export const MainPage = () => {
     requestNotificationPermission();
   }, []);
 
+  // 프로그램 시작 시 IN_PROGRESS 상태인 모든 태스크를 PAUSED로 변경
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    if (loading || hasInitializedRef.current) return;
+    
+    const inProgressTasksOnStart = tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
+    if (inProgressTasksOnStart.length > 0) {
+      hasInitializedRef.current = true;
+      
+      // Rust 트레이 타이머 중지
+      stopTrayTimer(true).catch((error) => {
+        console.error("Failed to stop tray timer on startup:", error);
+      });
+      
+      // 모든 IN_PROGRESS 태스크를 PAUSED로 변경
+      Promise.all(
+        inProgressTasksOnStart.map(async (task) => {
+          await updateTask({
+            id: task.id,
+            status: TaskStatus.PAUSED,
+            lastPausedAt: new Date().toISOString(),
+            // 남은 시간은 그대로 유지 (remainingTimeSeconds가 있으면 유지)
+          });
+        })
+      ).catch((error) => {
+        console.error("Failed to pause tasks on startup:", error);
+      });
+    }
+  }, [loading, tasks, updateTask]);
+
   // 메뉴별 필터링된 태스크
   const filteredTasks = useMemo(() => {
     return filterTasksByMenu(tasks, activeMenuId);
@@ -228,7 +259,53 @@ export const MainPage = () => {
       lastPausedAt: newStatus === TaskStatus.PAUSED ? new Date().toISOString() : undefined,
       completedAt: newStatus === TaskStatus.COMPLETED ? new Date().toISOString() : undefined,
       remainingTimeSeconds,
+      lastRunAt: newStatus === TaskStatus.IN_PROGRESS ? new Date().toISOString() : undefined,
     });
+
+    // 실행 중으로 변경될 때는 해당 task로 트레이 업데이트 (마지막 실행된 task)
+    if (newStatus === TaskStatus.IN_PROGRESS) {
+      const remainingSecs = remainingTimeSeconds ?? (task.expectedDuration ?? 5) * 60;
+      const { updateTrayTimer } = await import("@shared/lib/tray");
+      await updateTrayTimer(remainingSecs, task.title);
+      console.log("[handleStatusChange] Updated tray to running task:", {
+        taskId: task.id,
+        title: task.title,
+        remainingSecs
+      });
+    }
+    // 일시정지 시 다른 실행 중인 task가 있으면 그 task로 트레이 업데이트
+    else if (newStatus === TaskStatus.PAUSED) {
+      // 현재 task를 제외한 실행 중인 task 목록
+      const otherInProgressTasks = tasks.filter(
+        (t) => t.id !== taskId && t.status === TaskStatus.IN_PROGRESS
+      );
+      
+      if (otherInProgressTasks.length > 0) {
+        // 마지막 실행된 task 찾기 (lastRunAt 기준)
+        const lastRunTask = otherInProgressTasks.reduce((latest, current) => {
+          const latestRunAt = latest.lastRunAt ? new Date(latest.lastRunAt).getTime() : 0;
+          const currentRunAt = current.lastRunAt ? new Date(current.lastRunAt).getTime() : 0;
+          return currentRunAt > latestRunAt ? current : latest;
+        }, otherInProgressTasks[0]);
+
+        // 마지막 실행된 task의 남은 시간 계산
+        const remainingSecs = lastRunTask.remainingTimeSeconds ?? 
+          (lastRunTask.expectedDuration ?? 5) * 60;
+        
+        // 트레이 업데이트
+        const { updateTrayTimer } = await import("@shared/lib/tray");
+        await updateTrayTimer(remainingSecs, lastRunTask.title);
+        console.log("[handleStatusChange] Updated tray to last running task:", {
+          taskId: lastRunTask.id,
+          title: lastRunTask.title,
+          remainingSecs
+        });
+      } else {
+        // 실행 중인 task가 없으면 트레이를 "Slacker"로 변경
+        const { stopTrayTimer } = await import("@shared/lib/tray");
+        await stopTrayTimer(true);
+      }
+    }
   }, [tasks, updateTask]);
 
   const handleTaskSelect = useCallback(async (taskId: string) => {
