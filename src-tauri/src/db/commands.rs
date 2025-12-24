@@ -74,7 +74,7 @@ fn default_db_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|e| e.to_string())?;
     dir.push("storage");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join("slacker.db"))
+    Ok(dir.join("mirumi.db"))
 }
 
 /// DB 연결 획득

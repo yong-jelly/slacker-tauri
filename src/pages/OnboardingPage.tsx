@@ -19,7 +19,7 @@ export const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
   const handleMinimize = () => appWindow.minimize();
   const handleMaximize = () => appWindow.toggleMaximize();
 
-  // 기본 파일명 생성 (slacker-user-db-yyyymmdd-hhmm.db)
+  // 기본 파일명 생성 (mirumi-user-db-yyyymmdd-hhmm.db)
   const generateDefaultFileName = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -27,7 +27,7 @@ export const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
     const day = String(now.getDate()).padStart(2, "0");
     const hour = String(now.getHours()).padStart(2, "0");
     const minute = String(now.getMinutes()).padStart(2, "0");
-    return `slacker-user-db-${year}${month}${day}-${hour}${minute}.db`;
+    return `mirumi-user-db-${year}${month}${day}-${hour}${minute}.db`;
   };
 
   // 새 DB를 특정 경로에 생성 (파일 경로 직접 지정)
@@ -139,7 +139,7 @@ export const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
-              Slacker
+              미루미(MIRUMI)
             </h1>
             <p className="text-slate-400 text-lg">
               Task Timer for Focused Work

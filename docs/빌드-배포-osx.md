@@ -1,5 +1,30 @@
 # macOS 빌드 및 배포 가이드
 
+## 📌 버전 관리
+
+프로젝트의 버전은 **`src-tauri/Cargo.toml`**에서 단일 소스로 관리됩니다.
+
+```toml
+[package]
+version = "0.1.0"  # 여기서 버전 변경
+```
+
+버전을 변경하면:
+- `tauri.conf.json`은 자동으로 Cargo.toml의 버전을 사용합니다
+- 프론트엔드 UI는 Tauri API를 통해 버전을 표시합니다
+- `build.sh` 스크립트는 자동으로 Cargo.toml에서 버전을 파싱합니다
+
+### 버전 변경 방법
+
+1. `src-tauri/Cargo.toml`의 `version` 필드 수정
+2. 빌드하면 자동으로 새 버전이 적용됩니다
+
+```bash
+# 예: 0.1.0 → 0.2.0
+# Cargo.toml 수정 후
+bun run tauri build
+```
+
 ## 🔨 빌드하기
 
 ```bash
@@ -11,17 +36,17 @@ bun run tauri build
 ```
 src-tauri/target/release/bundle/
 ├── macos/
-│   └── slacker.app        # 앱 번들 (직접 실행 가능)
+│   └── mirumi.app        # 앱 번들 (직접 실행 가능)
 └── dmg/
-    └── slacker_0.1.0_aarch64.dmg   # DMG 설치 파일
+    └── mirumi_0.1.0_aarch64.dmg   # DMG 설치 파일
 ```
 
 ## 📦 배포 파일 종류
 
 | 파일 | 용도 |
 |------|------|
-| `slacker.app` | 앱 번들. 압축해서 공유하거나 `/Applications`에 복사해서 사용 |
-| `slacker_x.x.x_aarch64.dmg` | DMG 이미지. 다운로드 후 드래그 앤 드롭으로 설치 |
+| `mirumi.app` | 앱 번들. 압축해서 공유하거나 `/Applications`에 복사해서 사용 |
+| `mirumi_x.x.x_aarch64.dmg` | DMG 이미지. 다운로드 후 드래그 앤 드롭으로 설치 |
 
 ## 🔐 코드 서명 (Code Signing)
 
@@ -45,13 +70,13 @@ src-tauri/target/release/bundle/
 ## 👥 다른 사람에게 배포하기
 
 ### 방법 1: DMG 파일 공유 (권장)
-1. `src-tauri/target/release/bundle/dmg/slacker_x.x.x_aarch64.dmg` 파일을 공유
+1. `src-tauri/target/release/bundle/dmg/mirumi_x.x.x_aarch64.dmg` 파일을 공유
 2. Google Drive, Dropbox, GitHub Releases 등에 업로드
 3. 받는 사람이 DMG를 열고 앱을 `/Applications`로 드래그
 
 ### 방법 2: .app 번들 압축
-1. `slacker.app`을 우클릭 → "압축"
-2. `slacker.app.zip` 파일을 공유
+1. `mirumi.app`을 우클릭 → "압축"
+2. `mirumi.app.zip` 파일을 공유
 
 ### 방법 3: GitHub Releases
 ```bash
@@ -74,12 +99,12 @@ Ad-hoc 서명된 앱은 **Gatekeeper 경고**가 나타납니다.
 
 #### 방법 2: 시스템 환경설정
 1. **시스템 설정** → **개인 정보 보호 및 보안**
-2. 하단의 "slacker" 앱에 대해 **확인 없이 열기** 클릭
+2. 하단의 "mirumi" 앱에 대해 **확인 없이 열기** 클릭
 
 #### 방법 3: 터미널 명령어 (xattr 제거)
 ```bash
 # 앱의 격리 속성 제거
-xattr -cr /Applications/slacker.app
+xattr -cr /Applications/mirumi.app
 ```
 
 ## 🍎 공증 (Notarization) - 선택사항
@@ -113,19 +138,19 @@ bun run tauri build
 ### Apple Silicon (M1/M2/M3) - 기본
 ```bash
 bun run tauri build
-# → slacker_x.x.x_aarch64.dmg
+# → mirumi_x.x.x_aarch64.dmg
 ```
 
 ### Intel Mac용 빌드
 ```bash
 bun run tauri build --target x86_64-apple-darwin
-# → slacker_x.x.x_x64.dmg
-```ㅑ
+# → mirumi_x.x.x_x64.dmg
+```
 
 ### Universal Binary (양쪽 지원)
 ```bash
 bun run tauri build --target universal-apple-darwin
-# → slacker_x.x.x_universal.dmg
+# → mirumi_x.x.x_universal.dmg
 ```
 
 ## 📋 배포 체크리스트
@@ -140,7 +165,7 @@ bun run tauri build --target universal-apple-darwin
 
 ### "앱이 손상되었습니다" 오류
 ```bash
-xattr -cr /Applications/slacker.app
+xattr -cr /Applications/mirumi.app
 ```
 
 ### DMG가 생성되지 않음

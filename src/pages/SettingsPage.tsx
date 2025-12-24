@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ChevronDown } from "lucide-react";
-import { useDbStatus, useSettings, useTableViewer, useSidebarCounts } from "@shared/hooks";
+import { useDbStatus, useSettings, useTableViewer, useSidebarCounts, useAppVersion } from "@shared/hooks";
 import { AppLayout } from "@widgets/index";
 import { SettingsSelect, SettingsInput, SettingsToggle } from "@shared/ui";
 import { type SidebarMenuId } from "@widgets/layout/Sidebar";
@@ -28,6 +28,7 @@ export const SettingsPage = ({ onBack, onDbChange }: SettingsPageProps) => {
   } = useSettings();
   const { tables, selectedTable, rows, selectTable, loading: tableLoading } = useTableViewer();
   const { counts: sidebarCounts } = useSidebarCounts();
+  const appVersion = useAppVersion();
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -346,7 +347,7 @@ export const SettingsPage = ({ onBack, onDbChange }: SettingsPageProps) => {
 
             {/* 앱 정보 */}
             <section className="text-center text-gray-500 text-xs py-4">
-              <p>Slacker v0.1.0</p>
+              <p>미루미(MIRUMI) v{appVersion}</p>
               <p className="mt-1">데이터는 로컬에만 저장됩니다</p>
             </section>
           </div>

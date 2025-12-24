@@ -9,7 +9,7 @@ export interface WidgetSettings {
   isMinimized: boolean;
 }
 
-const WIDGET_SETTINGS_KEY = "slacker-widget-settings";
+const WIDGET_SETTINGS_KEY = "mirumi-widget-settings";
 
 const defaultSettings: WidgetSettings = {
   position: { x: -1, y: -1 }, // -1은 기본 위치 사용

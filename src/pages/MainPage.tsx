@@ -297,7 +297,7 @@ export const MainPage = () => {
           remainingSecs
         });
       } else {
-        // 실행 중인 task가 없으면 트레이를 "Slacker"로 변경
+        // 실행 중인 task가 없으면 트레이를 "미루미"로 변경
         const { stopTrayTimer } = await import("@shared/lib/tray");
         await stopTrayTimer(true);
       }

@@ -1,4 +1,4 @@
-# Slacker App UI/UX 정책
+# 미루미 App UI/UX 정책
 
 ## 1. 네비게이션 정책
 

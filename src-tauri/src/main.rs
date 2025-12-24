@@ -63,8 +63,8 @@ fn main() {
                 .icon_as_template(true)
                 .menu(&menu)
                 .show_menu_on_left_click(false)  // 왼쪽 클릭은 메뉴 안 보여줌
-                .title("Slacker")
-                .tooltip("Slacker - Task Timer")
+                .title("미루미")
+                .tooltip("미루미 - Task Timer")
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
                         show_main_window(app);
@@ -109,7 +109,7 @@ fn main() {
                         // 타이머 종료 시
                         if state.remaining_secs == 0 {
                             state.is_running = false;
-                            update_tray(&app_handle, "Slacker");
+                            update_tray(&app_handle, "미루미");
                             let _ = app_handle.emit("timer-ended", ());
                         }
                     }
@@ -227,7 +227,7 @@ async fn start_tray_timer(
 }
 
 // 트레이 타이머 정지 (Pause/Stop 시 호출)
-// 실행 중인 task가 없을 때만 "Slacker"로 변경하도록 프론트엔드에서 처리
+// 실행 중인 task가 없을 때만 "미루미"로 변경하도록 프론트엔드에서 처리
 #[tauri::command]
 async fn stop_tray_timer(
     state: tauri::State<'_, SharedTimerState>,
@@ -238,9 +238,9 @@ async fn stop_tray_timer(
     timer.is_running = false;
     let remaining = timer.remaining_secs;
     
-    // update_to_slacker가 true일 때만 "Slacker"로 변경 (기본값은 false)
+    // update_to_slacker가 true일 때만 "미루미"로 변경 (기본값은 false)
     if update_to_slacker.unwrap_or(false) {
-        update_tray(&app, "Slacker");
+        update_tray(&app, "미루미");
     }
     
     Ok(remaining)

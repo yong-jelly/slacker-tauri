@@ -1,7 +1,6 @@
 {
-  "productName": "slacker",
-  "version": "0.1.0",
-  "identifier": "com.slacker.app",
+  "productName": "mirumi",
+  "identifier": "com.mirumi.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "beforeBuildCommand": "",
@@ -12,7 +11,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "Slacker",
+        "title": "미루미(MIRUMI)",
         "width": 700,
         "height": 800,
         "minWidth": 180,

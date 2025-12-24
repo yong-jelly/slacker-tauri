@@ -34,7 +34,7 @@ const meta: Meta<typeof TaskItem> = {
     docs: {
       description: {
         component:
-          "Slacker의 핵심 컴포넌트. 작업의 시간 추적과 집중 상태를 시각화합니다.",
+          "미루미의 핵심 컴포넌트. 작업의 시간 추적과 집중 상태를 시각화합니다.",
       },
     },
     backgrounds: {
