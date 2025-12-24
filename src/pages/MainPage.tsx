@@ -262,16 +262,12 @@ export const MainPage = () => {
       lastRunAt: newStatus === TaskStatus.IN_PROGRESS ? new Date().toISOString() : undefined,
     });
 
-    // 실행 중으로 변경될 때는 해당 task로 트레이 업데이트 (마지막 실행된 task)
+    // 실행 중으로 변경될 때 트레이 타이머 업데이트
     if (newStatus === TaskStatus.IN_PROGRESS) {
-      const remainingSecs = remainingTimeSeconds ?? (task.expectedDuration ?? 5) * 60;
+      // 재시작 시: task.remainingTimeSeconds 사용 (일시정지 시 저장된 남은 시간)
+      const remainingSecs = remainingTimeSeconds ?? task.remainingTimeSeconds ?? (task.expectedDuration ?? 5) * 60;
       const { updateTrayTimer } = await import("@shared/lib/tray");
       await updateTrayTimer(remainingSecs, task.title);
-      console.log("[handleStatusChange] Updated tray to running task:", {
-        taskId: task.id,
-        title: task.title,
-        remainingSecs
-      });
     }
     // 일시정지 시 다른 실행 중인 task가 있으면 그 task로 트레이 업데이트
     else if (newStatus === TaskStatus.PAUSED) {
