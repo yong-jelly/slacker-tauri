@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Cargo.toml에서 버전 추출
-APP_VERSION=$(grep -E '^version\s*=' src-tauri/Cargo.toml | sed -E 's/^version\s*=\s*"([^"]+)".*/\1/')
+APP_VERSION=$(grep -E '^version\s*=' src-tauri/Cargo.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
 if [ -z "$APP_VERSION" ]; then
     echo -e "${RED}❌ 버전을 찾을 수 없습니다. Cargo.toml을 확인하세요.${NC}"
     exit 1
@@ -50,6 +50,7 @@ echo -e "${YELLOW}📁 배포 파일 준비 중...${NC}"
 mkdir -p dist
 
 # DMG 파일 찾기 및 복제 (날짜 추가)
+# mirumi_0.1.0_aarch64
 DMG_SOURCE="src-tauri/target/release/bundle/dmg/mirumi_${APP_VERSION}_aarch64.dmg"
 DMG_DEST="dist/mirumi_${APP_VERSION}_aarch64_${TODAY}.dmg"
 
