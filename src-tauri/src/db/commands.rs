@@ -371,6 +371,17 @@ pub fn update_task(
         None
     };
 
+    // 목표일 변경 시 액션 히스토리 기록을 위해 현재 목표일 조회
+    let previous_target_date: Option<String> = if input.target_date.is_some() {
+        conn.query_row(
+            "SELECT target_date FROM tbl_task WHERE id = ?1",
+            [&input.id],
+            |row| row.get(0),
+        ).ok()
+    } else {
+        None
+    };
+
     let mut updates = vec!["updated_at = datetime('now')".to_string()];
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
 
@@ -398,6 +409,8 @@ pub fn update_task(
     add_update!("total_time_spent", input.total_time_spent);
     add_update!("expected_duration", input.expected_duration);
     add_update!("remaining_time_seconds", input.remaining_time_seconds);
+    // 목표일 변경 감지를 위해 클론 저장
+    let new_target_date = input.target_date.clone();
     add_update!("target_date", input.target_date);
     if let Some(i) = input.is_important {
         updates.push(format!("is_important = ?{}", params.len() + 1));
@@ -418,25 +431,55 @@ pub fn update_task(
     conn.execute(&sql, params_refs.as_slice())
         .map_err(|e| e.to_string())?;
 
-    // 상태 변경 시 액션 히스토리 기록
+    // 상태 변경 시 액션 히스토리 기록 (동일 상태로 변경되는 경우는 기록하지 않음)
     if let Some(new_status) = new_status {
         let new_status_str = new_status.to_string();
-        let action_type = match new_status_str.as_str() {
-            "IN_PROGRESS" => "STARTED",
-            "PAUSED" => "PAUSED",
-            "COMPLETED" => "COMPLETED",
-            "ARCHIVED" => "ARCHIVED",
-            "INBOX" => "RESTORED",
-            _ => "STATUS_CHANGED",
+        // 이전 상태와 새 상태가 다를 때만 히스토리 기록
+        if previous_status.as_ref().map(|s| s.as_str()) != Some(new_status_str.as_str()) {
+            let action_type = match new_status_str.as_str() {
+                "IN_PROGRESS" => "STARTED",
+                "PAUSED" => "PAUSED",
+                "COMPLETED" => "COMPLETED",
+                "ARCHIVED" => "ARCHIVED",
+                "INBOX" => "RESTORED",
+                _ => "STATUS_CHANGED",
+            };
+            add_action_history_internal(
+                &conn,
+                &input.id,
+                action_type,
+                previous_status.as_deref(),
+                Some(&new_status_str),
+                None,
+            )?;
+        }
+    }
+
+    // 목표일 변경 시 액션 히스토리 기록
+    if let Some(new_target_date) = &new_target_date {
+        // 목표일이 실제로 변경되었는지 확인
+        let changed = match &previous_target_date {
+            Some(prev) => prev != new_target_date,
+            None => true, // 이전에 목표일이 없었는데 새로 설정된 경우
         };
-        add_action_history_internal(
-            &conn,
-            &input.id,
-            action_type,
-            previous_status.as_deref(),
-            Some(&new_status_str),
-            None,
-        )?;
+        
+        if changed {
+            // metadata에 이전/새 목표일 정보 저장
+            let metadata = if let Some(prev) = &previous_target_date {
+                format!(r#"{{"previousTargetDate":"{}","newTargetDate":"{}"}}"#, prev, new_target_date)
+            } else {
+                format!(r#"{{"newTargetDate":"{}"}}"#, new_target_date)
+            };
+            
+            add_action_history_internal(
+                &conn,
+                &input.id,
+                "TARGET_DATE_CHANGED",
+                None,
+                None,
+                Some(&metadata),
+            )?;
+        }
     }
 
     Ok(())

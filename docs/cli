@@ -87,3 +87,11 @@ bun run tauri icon ./path/to/app-icon.png
 bun run tauri info
 ```
 
+### sqlite
+
+#### sqlite3 버전 확인
+```bash
+echo "select sqlite_version();" | sqlite3 ./my.db
+```
+sqlite3 ~/Library/Application\ Support/com.mirumi.app/storage/mirumi.db \
+  "DELETE FROM tbl_task_action_history WHERE previous_status = new_status;

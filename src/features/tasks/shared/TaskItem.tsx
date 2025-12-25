@@ -134,11 +134,11 @@ export const TaskItem = ({
 
   const handleHeaderClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // 헤더 클릭 시 닫기
-    if (isDetailExpanded) {
-      onToggleExpand?.();
+    // 헤더 클릭 시 타이틀 편집 모드로 전환
+    if (isDetailExpanded && !isEditingTitle && !isInProgress && !isCompleted) {
+      handleStartEditing();
     }
-  }, [isDetailExpanded, onToggleExpand]);
+  }, [isDetailExpanded, isEditingTitle, isInProgress, isCompleted]);
 
   const handleCompleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,6 +147,16 @@ export const TaskItem = ({
 
   const handleStartEditing = useCallback(() => {
     setIsEditingTitle(true);
+    // 상태 업데이트 후 포커스 설정
+    // setTimeout을 사용하여 DOM 업데이트가 완전히 완료된 후 실행
+    setTimeout(() => {
+      if (titleInputRef.current) {
+        titleInputRef.current.focus();
+        // 커서를 텍스트 끝으로 이동
+        const length = titleInputRef.current.value.length;
+        titleInputRef.current.setSelectionRange(length, length);
+      }
+    }, 0);
   }, []);
 
   // ESC 키로 닫기
@@ -285,6 +295,24 @@ export const TaskItem = ({
       setTagInput("");
     }
   }, [isDetailExpanded, setMemoInput, setTagInput]);
+
+  // 타이틀 편집 모드로 전환 시 포커스 및 커서 위치 설정
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      // 렌더링 완료 후 포커스 및 커서 위치 설정
+      // requestAnimationFrame을 두 번 사용하여 DOM 업데이트가 완전히 완료된 후 실행
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (titleInputRef.current) {
+            titleInputRef.current.focus();
+            // 커서를 텍스트 끝으로 이동
+            const length = titleInputRef.current.value.length;
+            titleInputRef.current.setSelectionRange(length, length);
+          }
+        });
+      });
+    }
+  }, [isEditingTitle]);
 
   // 컨테이너 스타일 계산
   const containerClassName = `

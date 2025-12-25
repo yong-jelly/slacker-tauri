@@ -129,24 +129,42 @@ export const MainPage = () => {
     if (inProgressTasksOnStart.length > 0) {
       hasInitializedRef.current = true;
       
-      // Rust 트레이 타이머 중지
+      // Rust 트레이 타이머 중지 (강제 종료 후 재시작 시 타이머가 남아있을 수 있음)
       stopTrayTimer(true).catch((error) => {
-        console.error("Failed to stop tray timer on startup:", error);
+        console.error("[MainPage] Failed to stop tray timer on startup:", error);
       });
       
       // 모든 IN_PROGRESS 태스크를 PAUSED로 변경
+      // 남은 시간은 그대로 유지하되, 상태만 PAUSED로 변경하여 사용자가 재시작할 수 있도록 함
       Promise.all(
         inProgressTasksOnStart.map(async (task) => {
-          await updateTask({
-            id: task.id,
-            status: TaskStatus.PAUSED,
-            lastPausedAt: new Date().toISOString(),
-            // 남은 시간은 그대로 유지 (remainingTimeSeconds가 있으면 유지)
-          });
+          try {
+            // 남은 시간이 없거나 유효하지 않으면 예상 시간으로 초기화
+            const remainingTimeSeconds = task.remainingTimeSeconds && task.remainingTimeSeconds > 0
+              ? task.remainingTimeSeconds
+              : (task.expectedDuration ?? 5) * 60;
+            
+            await updateTask({
+              id: task.id,
+              status: TaskStatus.PAUSED,
+              lastPausedAt: new Date().toISOString(),
+              remainingTimeSeconds, // 남은 시간 명시적으로 저장
+            });
+            console.log("[MainPage] Paused task on startup:", {
+              taskId: task.id,
+              title: task.title,
+              remainingTimeSeconds,
+            });
+          } catch (error) {
+            console.error("[MainPage] Failed to pause task on startup:", task.id, error);
+          }
         })
       ).catch((error) => {
-        console.error("Failed to pause tasks on startup:", error);
+        console.error("[MainPage] Failed to pause tasks on startup:", error);
       });
+    } else {
+      // IN_PROGRESS 태스크가 없어도 초기화 플래그는 설정하여 이후 실행 방지
+      hasInitializedRef.current = true;
     }
   }, [loading, tasks, updateTask]);
 
@@ -236,6 +254,11 @@ export const MainPage = () => {
   ) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
+
+    // 동일 상태로 변경되는 경우는 처리하지 않음
+    if (task.status === newStatus) {
+      return;
+    }
         
     // 완료 상태로 변경 시 알림 전송
     if (newStatus === TaskStatus.COMPLETED && task.status !== TaskStatus.COMPLETED) {
@@ -262,15 +285,11 @@ export const MainPage = () => {
       lastRunAt: newStatus === TaskStatus.IN_PROGRESS ? new Date().toISOString() : undefined,
     });
 
-    // 실행 중으로 변경될 때 트레이 타이머 업데이트
-    if (newStatus === TaskStatus.IN_PROGRESS) {
-      // 재시작 시: task.remainingTimeSeconds 사용 (일시정지 시 저장된 남은 시간)
-      const remainingSecs = remainingTimeSeconds ?? task.remainingTimeSeconds ?? (task.expectedDuration ?? 5) * 60;
-      const { updateTrayTimer } = await import("@shared/lib/tray");
-      await updateTrayTimer(remainingSecs, task.title);
-    }
+    // 실행 중으로 변경될 때는 useTaskTimer의 handlePlay에서 타이머를 시작하므로
+    // 여기서는 추가로 타이머를 업데이트하지 않음 (중복 방지)
+    
     // 일시정지 시 다른 실행 중인 task가 있으면 그 task로 트레이 업데이트
-    else if (newStatus === TaskStatus.PAUSED) {
+    if (newStatus === TaskStatus.PAUSED) {
       // 현재 task를 제외한 실행 중인 task 목록
       const otherInProgressTasks = tasks.filter(
         (t) => t.id !== taskId && t.status === TaskStatus.IN_PROGRESS
@@ -417,6 +436,23 @@ export const MainPage = () => {
     setIsAddingTask(false);
   }, []);
 
+  // cmd+n 단축키 핸들러 (할일/오늘/내일 메뉴에서만 동작)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // cmd+n (macOS) 또는 ctrl+n (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+        // 할일, 오늘, 내일 메뉴에서만 동작
+        if (activeMenuId === "inbox" || activeMenuId === "today" || activeMenuId === "tomorrow") {
+          e.preventDefault();
+          handleOpenAddTask();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeMenuId, handleOpenAddTask]);
+
   // 진행중인 모든 태스크를 일시정지
   const pauseAllInProgressTasks = useCallback(async () => {
     const inProgressTasks = tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
@@ -536,6 +572,15 @@ export const MainPage = () => {
     settings: "설정",
   };
 
+  // activeMenuId에 따른 초기 목표일 결정
+  const getInitialTargetDate = (): "today" | "tomorrow" => {
+    if (activeMenuId === "tomorrow") {
+      return "tomorrow";
+    }
+    // "today" 또는 "inbox"일 때는 "today" 반환
+    return "today";
+  };
+
   return (
     <AppLayout
       inProgressTask={currentInProgressTask}
@@ -616,6 +661,7 @@ export const MainPage = () => {
             showAddTaskForm={isAddingTask}
             onAddTask={handleAddTask}
             onCloseAddTask={handleCloseAddTask}
+            initialTargetDate={getInitialTargetDate()}
             sectionType="inbox"
             sortType={inboxSortType}
             onSortChange={setInboxSortType}
@@ -646,6 +692,7 @@ export const MainPage = () => {
               showAddTaskForm={isAddingTask}
               onAddTask={handleAddTask}
               onCloseAddTask={handleCloseAddTask}
+              initialTargetDate={getInitialTargetDate()}
               sectionType={isCompletedView ? "completed" : isArchiveView ? "completed" : "inbox"}
               sortType={filteredSortType}
               onSortChange={setFilteredSortType}

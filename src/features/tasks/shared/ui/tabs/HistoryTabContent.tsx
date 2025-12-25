@@ -1,11 +1,55 @@
 import { TaskRunHistory, TaskActionHistory } from "@entities/task";
 import { formatDateTime, formatMinutes } from "../../lib/timeFormat";
-import { Play, Pause, Check, Archive, Plus, RotateCcw, Clock } from "lucide-react";
+import { Play, Pause, Check, Archive, Plus, RotateCcw, Clock, Calendar } from "lucide-react";
 
 export interface HistoryTabContentProps {
   sortedHistory: TaskRunHistory[];
   sortedActionHistory: TaskActionHistory[];
 }
+
+// 상태를 한글로 변환
+const formatStatusToKorean = (status: string): string => {
+  switch (status.toUpperCase()) {
+    case "INBOX":
+      return "할일";
+    case "IN_PROGRESS":
+      return "진행중";
+    case "PAUSED":
+      return "일시정지";
+    case "COMPLETED":
+      return "완료";
+    case "ARCHIVED":
+      return "보관함";
+    default:
+      return status;
+  }
+};
+
+// 날짜를 MM월 DD일 형식으로 포맷
+const formatDateMonthDay = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}월 ${day}일`;
+  } catch {
+    return dateStr;
+  }
+};
+
+// metadata에서 목표일 정보 파싱
+const parseTargetDateMetadata = (metadata?: string): { previous?: string; new?: string } | null => {
+  if (!metadata) return null;
+  try {
+    const parsed = JSON.parse(metadata);
+    return {
+      previous: parsed.previousTargetDate,
+      new: parsed.newTargetDate,
+    };
+  } catch {
+    return null;
+  }
+};
 
 // 액션 타입별 아이콘과 색상
 const getActionInfo = (actionType: string) => {
@@ -22,6 +66,8 @@ const getActionInfo = (actionType: string) => {
       return { icon: Archive, color: "text-purple-400", bg: "bg-purple-500/20", label: "보관" };
     case "RESTORED":
       return { icon: RotateCcw, color: "text-cyan-400", bg: "bg-cyan-500/20", label: "복원" };
+    case "TARGET_DATE_CHANGED":
+      return { icon: Calendar, color: "text-orange-400", bg: "bg-orange-500/20", label: "일정 변경" };
     default:
       return { icon: Clock, color: "text-gray-400", bg: "bg-gray-500/20", label: "변경" };
   }
@@ -34,6 +80,10 @@ export const HistoryTabContent = ({ sortedHistory, sortedActionHistory }: Histor
       {sortedActionHistory.length > 0 ? (
         sortedActionHistory.map((action) => {
           const { icon: Icon, color, bg, label } = getActionInfo(action.actionType);
+          const targetDateInfo = action.actionType === "TARGET_DATE_CHANGED" 
+            ? parseTargetDateMetadata(action.metadata)
+            : null;
+          
           return (
             <div
               key={action.id}
@@ -45,9 +95,17 @@ export const HistoryTabContent = ({ sortedHistory, sortedActionHistory }: Histor
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className={`text-sm font-medium ${color}`}>{label}</span>
-                  {action.previousStatus && action.newStatus && (
+                  {action.previousStatus && action.newStatus && action.previousStatus !== action.newStatus && (
                     <span className="text-[10px] text-gray-500">
-                      {action.previousStatus} → {action.newStatus}
+                      {formatStatusToKorean(action.previousStatus)} → {formatStatusToKorean(action.newStatus)}
+                    </span>
+                  )}
+                  {targetDateInfo && (
+                    <span className="text-[10px] text-yellow-600">
+                      {targetDateInfo.previous 
+                        ? `${formatDateMonthDay(targetDateInfo.previous)} → ${formatDateMonthDay(targetDateInfo.new!)}`
+                        : formatDateMonthDay(targetDateInfo.new!)
+                      }
                     </span>
                   )}
                 </div>

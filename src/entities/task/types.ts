@@ -57,8 +57,8 @@ export interface TimeExtensionHistory {
 /** 액션 히스토리 항목 (모든 상태 변경 기록) */
 export interface TaskActionHistory {
   id: string;
-  /** 액션 타입: CREATED, STARTED, PAUSED, COMPLETED, ARCHIVED, RESTORED */
-  actionType: "CREATED" | "STARTED" | "PAUSED" | "COMPLETED" | "ARCHIVED" | "RESTORED" | "STATUS_CHANGED";
+  /** 액션 타입: CREATED, STARTED, PAUSED, COMPLETED, ARCHIVED, RESTORED, TARGET_DATE_CHANGED */
+  actionType: "CREATED" | "STARTED" | "PAUSED" | "COMPLETED" | "ARCHIVED" | "RESTORED" | "STATUS_CHANGED" | "TARGET_DATE_CHANGED";
   /** 이전 상태 */
   previousStatus?: string;
   /** 새 상태 */

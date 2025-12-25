@@ -349,8 +349,15 @@ export const useTaskItem = ({
   // 이펙트들
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
+      // 다음 프레임에서 포커스 및 커서 위치 설정을 수행하여 렌더링 완료 후 실행되도록 함
+      requestAnimationFrame(() => {
+        if (titleInputRef.current) {
+          titleInputRef.current.focus();
+          // 커서를 텍스트 끝으로 이동
+          const length = titleInputRef.current.value.length;
+          titleInputRef.current.setSelectionRange(length, length);
+        }
+      });
     }
   }, [isEditingTitle]);
 

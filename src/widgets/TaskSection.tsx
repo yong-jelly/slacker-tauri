@@ -29,6 +29,8 @@ interface TaskSectionProps {
   onAddTask?: (title: string, targetDate: Date, expectedDuration: number) => void;
   /** Task 추가 UI 닫기 핸들러 */
   onCloseAddTask?: () => void;
+  /** Task 추가 폼의 초기 목표일 */
+  initialTargetDate?: "today" | "tomorrow";
   /** 섹션 타입 (빈 상태 아이콘 결정용) */
   sectionType?: "inProgress" | "paused" | "inbox" | "completed";
   /** 현재 정렬 타입 */
@@ -100,6 +102,7 @@ export const TaskSection = ({
   showAddTaskForm,
   onAddTask,
   onCloseAddTask,
+  initialTargetDate,
   sectionType,
   sortType = "created",
   onSortChange,
@@ -129,6 +132,7 @@ export const TaskSection = ({
           <AddTaskForm
             onSubmit={onAddTask}
             onCancel={onCloseAddTask}
+            initialTargetDate={initialTargetDate}
           />
         )}
       </AnimatePresence>

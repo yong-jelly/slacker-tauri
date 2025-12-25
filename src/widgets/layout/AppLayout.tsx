@@ -15,6 +15,9 @@ import { saveWindowState, loadWindowState, getDefaultWindowState } from "@shared
 // 태스크 목록 메뉴 ID 목록
 const TASK_LIST_MENU_IDS: SidebarMenuId[] = ["inbox", "completed", "starred", "today", "tomorrow", "overdue", "archive"];
 
+// 추가 버튼과 위젯 버튼이 표시되는 메뉴 ID 목록 (할일, 오늘, 내일만)
+const ADD_TASK_MENU_IDS: SidebarMenuId[] = ["inbox", "today", "tomorrow"];
+
 interface AppLayoutProps {
   children: ReactNode;
   /** 진행중인 Task (Widget 모드용) */
@@ -697,8 +700,8 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
 
           {/* Widget 모드 버튼 + 새 할일 추가 버튼 */}
           <div className="titlebar-buttons flex items-center gap-2 pr-4">
-            {/* Widget 모드 버튼 (진행중이거나 일시정지된 Task가 있을 때만 표시) */}
-            {inProgressTask && (inProgressTask.status === TaskStatus.IN_PROGRESS || inProgressTask.status === TaskStatus.PAUSED) && (
+            {/* Widget 모드 버튼 (할일/오늘/내일 메뉴에서만, 진행중이거나 일시정지된 Task가 있을 때만 표시) */}
+            {ADD_TASK_MENU_IDS.includes(activeMenuId) && inProgressTask && (inProgressTask.status === TaskStatus.IN_PROGRESS || inProgressTask.status === TaskStatus.PAUSED) && (
               <button
                 onClick={handleToggleWidgetMode}
                 className="p-2 rounded-lg text-gray-400 hover:text-[#FF6B00] hover:bg-[#FF6B00]/10 transition-all"
@@ -707,8 +710,8 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
                 <LayoutGrid className="w-4 h-4" />
               </button>
             )}
-            {/* 추가하기 버튼: 태스크 목록 메뉴일 때만 표시 */}
-            {TASK_LIST_MENU_IDS.includes(activeMenuId) && onAddTaskClick && (
+            {/* 추가하기 버튼: 할일/오늘/내일 메뉴일 때만 표시 */}
+            {ADD_TASK_MENU_IDS.includes(activeMenuId) && onAddTaskClick && (
               <AddButton
                 label="추가하기"
                 onClick={onAddTaskClick}

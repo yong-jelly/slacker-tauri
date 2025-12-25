@@ -10,6 +10,8 @@ interface AddTaskFormProps {
   onCancel?: () => void;
   /** 자동 포커스 여부 */
   autoFocus?: boolean;
+  /** 초기 목표일 (기본값: "today") */
+  initialTargetDate?: "today" | "tomorrow";
 }
 
 const DURATION_OPTIONS = [
@@ -19,9 +21,9 @@ const DURATION_OPTIONS = [
   { label: "1시간", value: 60 },
 ];
 
-export const AddTaskForm = ({ onSubmit, onCancel, autoFocus = true }: AddTaskFormProps) => {
+export const AddTaskForm = ({ onSubmit, onCancel, autoFocus = true, initialTargetDate = "today" }: AddTaskFormProps) => {
   const [title, setTitle] = useState("");
-  const [targetDate, setTargetDate] = useState<"today" | "tomorrow">("today");
+  const [targetDate, setTargetDate] = useState<"today" | "tomorrow">(initialTargetDate);
   const [expectedDuration, setExpectedDuration] = useState(30); // 기본값 30분
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -30,6 +32,11 @@ export const AddTaskForm = ({ onSubmit, onCancel, autoFocus = true }: AddTaskFor
       inputRef.current.focus();
     }
   }, [autoFocus]);
+
+  // initialTargetDate가 변경되면 targetDate 업데이트
+  useEffect(() => {
+    setTargetDate(initialTargetDate);
+  }, [initialTargetDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
