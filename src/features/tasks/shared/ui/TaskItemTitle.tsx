@@ -51,10 +51,13 @@ export const TaskItemTitle = ({
   onStartEditing,
 }: TaskItemTitleProps) => {
   const handleTitleSpanClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    // 닫힌 상태에서는 이벤트를 전파시켜 handleRowClick이 실행되도록 함
+    // 열린 상태에서만 편집 모드로 전환하고 이벤트 전파 중지
     if (isDetailExpanded && !isInProgress && !isCompleted) {
+      e.stopPropagation();
       onStartEditing();
     }
+    // 닫힌 상태에서는 stopPropagation을 호출하지 않아 handleRowClick이 실행됨
   };
 
   return (

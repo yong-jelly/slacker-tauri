@@ -42,7 +42,10 @@ export const MemoTabContent = ({
 
     {memos && memos.length > 0 ? (
       <div className="space-y-4">
-        {[...memos].reverse().map((memo) => (
+        {/* 최신 순으로 정렬하여 표시 (createdAt은 이미 Date 객체) */}
+        {[...memos]
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map((memo) => (
           <div
             key={memo.id}
             className="bg-gray-700/20 rounded-lg p-4 px-4 py-3 border border-gray-600/20"

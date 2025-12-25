@@ -72,3 +72,4 @@ git checkout main && git stash pop
 - `git stash drop`으로 stash를 삭제할 수 있습니다
 
 
+

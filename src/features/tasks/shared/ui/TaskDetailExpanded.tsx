@@ -166,6 +166,7 @@ export const TaskDetailExpanded = ({
           {latestMemo && (
             <div className="text-xs bg-gray-700/20 rounded-lg px-3 py-2 border border-gray-600/20">
               <div className="flex items-center justify-between text-gray-500 text-[10px] mb-1">
+                {/* formatRelativeTime은 Date 객체 또는 문자열을 받아서 로컬 시간대 기준으로 처리 */}
                 <span>{formatRelativeTime(latestMemo.createdAt)}</span>
               </div>
               <p className="text-gray-300">{latestMemo.content}</p>

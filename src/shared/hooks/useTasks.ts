@@ -29,6 +29,32 @@ interface TaskRaw {
   actionHistory: { id: string; taskId: string; actionType: string; previousStatus?: string; newStatus?: string; metadata?: string; createdAt: string }[];
 }
 
+/**
+ * SQLite의 datetime('now')로 저장된 UTC 시간 문자열을 로컬 Date 객체로 변환
+ * 
+ * SQLite는 UTC 시간을 "YYYY-MM-DD HH:MM:SS" 형식으로 저장합니다.
+ * JavaScript의 new Date()는 이 형식을 로컬 시간으로 해석하므로,
+ * UTC임을 명시하기 위해 "Z" suffix를 추가해야 합니다.
+ * 
+ * @param dateStr - SQLite에서 받은 날짜 문자열 (UTC 시간)
+ * @returns 로컬 시간대로 변환된 Date 객체
+ */
+function parseUTCDateString(dateStr: string): Date {
+  // 이미 ISO 8601 형식이거나 시간대 정보가 있으면 그대로 파싱
+  if (dateStr.endsWith('Z') || dateStr.includes('+') || /\d{2}:\d{2}$/.test(dateStr) === false) {
+    // 마지막 조건: 시간대 오프셋이 있는지 확인 (예: +09:00, -05:00)
+    const hasTimezone = /[+-]\d{2}:\d{2}$/.test(dateStr);
+    if (dateStr.endsWith('Z') || hasTimezone) {
+      return new Date(dateStr);
+    }
+  }
+  
+  // SQLite의 "YYYY-MM-DD HH:MM:SS" 형식을 ISO 8601 UTC 형식으로 변환
+  // 공백을 'T'로 바꾸고 끝에 'Z'를 추가하여 UTC임을 명시
+  const isoString = dateStr.replace(' ', 'T') + 'Z';
+  return new Date(isoString);
+}
+
 /** 원시 Task를 프론트엔드 Task 타입으로 변환 */
 function parseTask(raw: TaskRaw): Task {
   return {
@@ -42,29 +68,31 @@ function parseTask(raw: TaskRaw): Task {
     totalTimeSpent: raw.totalTimeSpent,
     expectedDuration: raw.expectedDuration,
     remainingTimeSeconds: raw.remainingTimeSeconds,
+    // targetDate는 날짜만 있으므로 그대로 파싱 (시간대 영향 없음)
     targetDate: raw.targetDate ? new Date(raw.targetDate) : undefined,
     isImportant: raw.isImportant,
-    createdAt: new Date(raw.createdAt),
-    completedAt: raw.completedAt ? new Date(raw.completedAt) : undefined,
-    lastPausedAt: raw.lastPausedAt ? new Date(raw.lastPausedAt) : undefined,
-    lastRunAt: raw.lastRunAt ? new Date(raw.lastRunAt) : undefined,
+    // SQLite UTC 시간 문자열을 로컬 Date 객체로 변환
+    createdAt: parseUTCDateString(raw.createdAt),
+    completedAt: raw.completedAt ? parseUTCDateString(raw.completedAt) : undefined,
+    lastPausedAt: raw.lastPausedAt ? parseUTCDateString(raw.lastPausedAt) : undefined,
+    lastRunAt: raw.lastRunAt ? parseUTCDateString(raw.lastRunAt) : undefined,
     tags: raw.tags,
     memos: raw.memos.map(m => ({
       id: m.id,
       content: m.content,
-      createdAt: new Date(m.createdAt),
+      createdAt: parseUTCDateString(m.createdAt),
     })),
     notes: raw.notes.map(n => ({
       id: n.id,
       title: n.title,
       content: n.content,
-      createdAt: new Date(n.createdAt),
-      updatedAt: n.updatedAt ? new Date(n.updatedAt) : undefined,
+      createdAt: parseUTCDateString(n.createdAt),
+      updatedAt: n.updatedAt ? parseUTCDateString(n.updatedAt) : undefined,
     })),
     runHistory: raw.runHistory.map(r => ({
       id: r.id,
-      startedAt: new Date(r.startedAt),
-      endedAt: r.endedAt ? new Date(r.endedAt) : undefined,
+      startedAt: parseUTCDateString(r.startedAt),
+      endedAt: r.endedAt ? parseUTCDateString(r.endedAt) : undefined,
       duration: r.duration,
       endType: r.endType as TaskRunHistory["endType"],
     })),
@@ -74,7 +102,7 @@ function parseTask(raw: TaskRaw): Task {
       previousDuration: t.previousDuration,
       newDuration: t.newDuration,
       reason: t.reason,
-      createdAt: new Date(t.createdAt),
+      createdAt: parseUTCDateString(t.createdAt),
     })),
     actionHistory: raw.actionHistory.map(a => ({
       id: a.id,
@@ -82,7 +110,7 @@ function parseTask(raw: TaskRaw): Task {
       previousStatus: a.previousStatus,
       newStatus: a.newStatus,
       metadata: a.metadata,
-      createdAt: new Date(a.createdAt),
+      createdAt: parseUTCDateString(a.createdAt),
     })),
   };
 }

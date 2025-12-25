@@ -159,25 +159,33 @@ export const useTaskItem = ({
 
   const isNotStarted = isInbox && completedProgress === 0;
   
-  // 최신 메모
-  const latestMemo = task.memos?.length ? task.memos[task.memos.length - 1] : null;
+  // 최신 메모: createdAt 기준으로 최신 순으로 정렬 후 첫 번째 요소
+  // createdAt은 이미 Date 객체로 변환되어 있음 (useTasks.ts의 parseUTCDateString 참조)
+  const latestMemo = useMemo(() => {
+    if (!task.memos || task.memos.length === 0) return null;
+    // 최신 순으로 정렬 (createdAt이 큰 것이 최신)
+    const sortedMemos = [...task.memos].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+    return sortedMemos[0];
+  }, [task.memos]);
 
-  // 정렬된 히스토리
+  // 정렬된 히스토리 (모든 날짜는 이미 Date 객체로 변환되어 있음)
   const sortedHistory = useMemo(() => {
     return [...(task.runHistory || [])].sort(
-      (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+      (a, b) => b.startedAt.getTime() - a.startedAt.getTime()
     );
   }, [task.runHistory]);
 
   const sortedTimeExtensions = useMemo(() => {
     return [...(task.timeExtensions || [])].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
     );
   }, [task.timeExtensions]);
 
   const sortedActionHistory = useMemo(() => {
     return [...(task.actionHistory || [])].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
     );
   }, [task.actionHistory]);
 

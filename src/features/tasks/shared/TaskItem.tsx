@@ -1,6 +1,6 @@
 import { Checkbox } from "@shared/ui";
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 import { formatDurationWithSpent, formatTargetDate, getDelayDays } from "./lib/timeFormat";
 import { useTaskItem } from "./hooks/useTaskItem";
@@ -39,6 +39,9 @@ export const TaskItem = ({
 }: TaskItemProps) => {
   // 타이틀 편집 상태 (로컬)
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  
+  // 외부 클릭 감지를 위한 ref
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // 커스텀 훅으로 상태 및 핸들러 관리
   const {
@@ -121,23 +124,167 @@ export const TaskItem = ({
   const isDelayed = delayDays > 0 && !isCompleted;
 
   // 로컬 핸들러들
-  const handleRowClick = useCallback(() => {
+  const handleRowClick = useCallback((e: React.MouseEvent) => {
     if (isInProgress) return;
-    if (!isDetailExpanded) {
-      onToggleExpand?.();
-    }
-  }, [isDetailExpanded, isInProgress, onToggleExpand]);
+    // 외부 클릭 감지와의 충돌 방지를 위해 이벤트 전파 중지
+    e.stopPropagation();
+    // 항상 토글 (열려있으면 닫고, 닫혀있으면 열기)
+    onToggleExpand?.();
+  }, [isInProgress, onToggleExpand]);
 
   const handleHeaderClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    // 헤더 클릭 시 닫기
     if (isDetailExpanded) {
       onToggleExpand?.();
     }
   }, [isDetailExpanded, onToggleExpand]);
 
+  const handleCompleteClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleComplete(e);
+  }, [handleComplete]);
+
   const handleStartEditing = useCallback(() => {
     setIsEditingTitle(true);
   }, []);
+
+  // ESC 키로 닫기
+  useEffect(() => {
+    if (!isDetailExpanded || isEditingTitle || isModalOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onToggleExpand?.();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isDetailExpanded, isEditingTitle, isModalOpen, onToggleExpand]);
+
+  /**
+   * 외부 클릭 감지로 TaskItem 닫기
+   * 
+   * 중요: TaskItem 내부의 input 요소들 간 포커스 이동은 외부 클릭으로 간주하지 않음
+   * 예: 타이틀 input에서 태그 input으로 포커스 이동 시 TaskItem이 닫히지 않아야 함
+   * 
+   * 동작 원리:
+   * 1. 포커스 이벤트를 통해 TaskItem 내부의 input 요소로 포커스가 이동하는지 추적
+   * 2. 클릭 이벤트에서 다음 조건들을 확인하여 닫지 않음:
+   *    - 클릭한 요소가 TaskItem 내부의 input 요소인 경우
+   *    - 포커스가 TaskItem 내부의 input 요소로 이동 중인 경우
+   *    - 현재 포커스가 TaskItem 내부의 input 요소에 있는 경우
+   * 3. 위 조건에 해당하지 않고, TaskItem 외부를 클릭한 경우에만 닫기
+   */
+  useEffect(() => {
+    // 열려있지 않거나, 타이틀 편집 중이거나, 모달이 열려있으면 외부 클릭 감지 비활성화
+    if (!isDetailExpanded || isEditingTitle || isModalOpen) return;
+
+    // 포커스가 TaskItem 내부의 input 요소로 이동하는지 추적하는 플래그
+    let isFocusingInternalInput = false;
+
+    /**
+     * 포커스 이벤트 핸들러
+     * TaskItem 내부의 input 요소로 포커스가 이동하는지 확인
+     */
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // 포커스가 TaskItem 내부의 입력 가능한 요소(input, textarea, select, contentEditable)로 이동하는 경우
+      if (
+        containerRef.current &&
+        containerRef.current.contains(target) &&
+        (target.tagName === "INPUT" || 
+         target.tagName === "TEXTAREA" || 
+         target.tagName === "SELECT" ||
+         target.isContentEditable)
+      ) {
+        // 플래그 설정: input 간 포커스 이동 중임을 표시
+        isFocusingInternalInput = true;
+        // 짧은 시간 후 플래그 리셋 (다음 클릭 이벤트를 위해)
+        // 포커스 이벤트가 클릭 이벤트보다 먼저 발생하므로, 클릭 이벤트에서 이 플래그를 확인할 수 있음
+        setTimeout(() => {
+          isFocusingInternalInput = false;
+        }, 100);
+      }
+    };
+
+    /**
+     * 클릭 이벤트 핸들러
+     * 외부 클릭인지 확인하고, 외부 클릭인 경우에만 TaskItem 닫기
+     */
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const clickedElement = e.target as HTMLElement;
+
+      // 조건 1: 클릭한 요소가 TaskItem 내부의 입력 가능한 요소인 경우 무시
+      // 예: 태그 input을 클릭하거나, 메모 input을 클릭한 경우
+      if (
+        containerRef.current &&
+        containerRef.current.contains(target) &&
+        (clickedElement.tagName === "INPUT" || 
+         clickedElement.tagName === "TEXTAREA" || 
+         clickedElement.tagName === "SELECT" ||
+         clickedElement.isContentEditable)
+      ) {
+        return;
+      }
+
+      // 조건 2: 포커스가 TaskItem 내부의 input 요소로 이동 중인 경우 무시
+      // 예: 타이틀 input에서 태그 input으로 포커스 이동 중인 경우
+      if (isFocusingInternalInput) {
+        return;
+      }
+
+      // 조건 3: 현재 포커스가 TaskItem 내부의 input 요소에 있는 경우 무시
+      // 예: 태그 input에 포커스가 있는 상태에서 다른 곳을 클릭한 경우
+      const activeElement = document.activeElement as HTMLElement;
+      if (
+        activeElement &&
+        containerRef.current &&
+        containerRef.current.contains(activeElement) &&
+        (activeElement.tagName === "INPUT" || 
+         activeElement.tagName === "TEXTAREA" || 
+         activeElement.tagName === "SELECT" ||
+         activeElement.isContentEditable)
+      ) {
+        return;
+      }
+
+      // 위 조건들에 해당하지 않고, TaskItem 외부를 클릭한 경우에만 닫기
+      // 모달이 열려있는 경우는 제외 (모달 내부 클릭은 외부 클릭으로 간주하지 않음)
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        !(target as Element).closest('[role="dialog"]')
+      ) {
+        onToggleExpand?.();
+      }
+    };
+
+    // 포커스 이벤트 리스너 추가 (캡처 단계에서 먼저 처리하여 클릭 이벤트보다 먼저 실행)
+    document.addEventListener("focus", handleFocus, true);
+    // 클릭 이벤트 리스너 추가 (버블링 단계에서 처리하여 TaskItem 내부 클릭이 먼저 처리되도록 함)
+    document.addEventListener("click", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("focus", handleFocus, true);
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [isDetailExpanded, isEditingTitle, isModalOpen, onToggleExpand]);
+
+  // 닫힐 때 모든 입력 상태 초기화
+  useEffect(() => {
+    if (!isDetailExpanded) {
+      // 타이틀 편집 상태 취소
+      setIsEditingTitle(false);
+      // 메모 입력 초기화
+      setMemoInput("");
+      // 태그 입력 초기화
+      setTagInput("");
+    }
+  }, [isDetailExpanded, setMemoInput, setTagInput]);
 
   // 컨테이너 스타일 계산
   const containerClassName = `
@@ -156,6 +303,7 @@ export const TaskItem = ({
 
   return (
     <motion.div
+      ref={containerRef}
       layout
       onClick={handleRowClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -188,7 +336,7 @@ export const TaskItem = ({
         >
           {/* 원형 프로그레스 인디케이터 / 체크박스 */}
           {!isEditingTitle && (
-            <div className="flex-shrink-0" onClick={handleComplete}>
+            <div className="flex-shrink-0" onClick={handleCompleteClick}>
               {isCompleted ? (
                 <Checkbox
                   checked={true}

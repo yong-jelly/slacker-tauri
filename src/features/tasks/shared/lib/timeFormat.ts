@@ -98,10 +98,23 @@ export const formatTargetDate = (date: Date): string => {
   return `${diff}일 후`;
 };
 
-/** 상대 시간 포맷 (방금, n분 전, n시간 전, n일 전) */
-export const formatRelativeTime = (date: Date): string => {
+/**
+ * 상대 시간 포맷 (방금, n분 전, n시간 전, n일 전)
+ * 
+ * Date 객체를 받아서 현재 시간과의 차이를 계산합니다.
+ * 
+ * 주의: Date 객체가 이미 올바른 로컬 시간대로 변환되어 있어야 합니다.
+ * (useTasks.ts의 parseUTCDateString 함수 참조)
+ * 
+ * @param date - Date 객체 또는 Date로 변환 가능한 값 (문자열, 숫자 등)
+ */
+export const formatRelativeTime = (date: Date | string | number): string => {
+  // Date 객체로 변환
+  const dateObj = date instanceof Date ? date : new Date(date);
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  
+  // 현재 시간과의 차이 계산 (밀리초 단위)
+  const diff = now.getTime() - dateObj.getTime();
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -113,9 +126,23 @@ export const formatRelativeTime = (date: Date): string => {
   return `${days}일 전`;
 };
 
-/** 날짜를 한글 형식으로 변환 (M월 D일 HH:MM) */
-export const formatDateTime = (date: Date): string => {
-  return date.toLocaleDateString("ko-KR", { 
+/**
+ * 날짜를 한글 형식으로 변환 (M월 D일 HH:MM)
+ * 
+ * Date 객체를 받아서 로컬 시간대 기준으로 포맷팅합니다.
+ * toLocaleDateString은 자동으로 OS의 로컬 시간대를 사용합니다.
+ * 
+ * 주의: Date 객체가 이미 올바른 로컬 시간대로 변환되어 있어야 합니다.
+ * (useTasks.ts의 parseUTCDateString 함수 참조)
+ * 
+ * @param date - Date 객체 또는 Date로 변환 가능한 값 (문자열, 숫자 등)
+ */
+export const formatDateTime = (date: Date | string | number): string => {
+  // Date 객체로 변환
+  const dateObj = date instanceof Date ? date : new Date(date);
+  
+  // 로컬 시간대 기준으로 포맷팅
+  return dateObj.toLocaleDateString("ko-KR", { 
     month: "short", 
     day: "numeric",
     hour: "2-digit",
