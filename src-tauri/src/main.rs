@@ -241,6 +241,10 @@ async fn stop_tray_timer(
     // update_to_slacker가 true일 때만 "미루미"로 변경 (기본값은 false)
     if update_to_slacker.unwrap_or(false) {
         update_tray(&app, "미루미");
+    } else {
+        // 일시정지 시 현재 태스크 제목과 남은 시간을 트레이에 고정하여 표시 (흐르지 않게 함)
+        let title = format_tray_title(&timer.task_title, timer.remaining_secs);
+        update_tray(&app, &title);
     }
     
     Ok(remaining)

@@ -276,6 +276,27 @@ export const MainPage = () => {
 
     console.log("[handleStatusChange]", { taskId, newStatus, options, remainingTimeSeconds });
         
+    // 실행 중으로 변경될 때: 다른 실행 중인 태스크를 모두 일시정지 (상태 일관성 보장)
+    if (newStatus === TaskStatus.IN_PROGRESS) {
+      const otherInProgressTasks = tasks.filter(
+        (t) => t.id !== taskId && t.status === TaskStatus.IN_PROGRESS
+      );
+      
+      for (const t of otherInProgressTasks) {
+        try {
+          await updateTask({
+            id: t.id,
+            status: TaskStatus.PAUSED,
+            lastPausedAt: new Date().toISOString(),
+            // 남은 시간은 현재 t.remainingTimeSeconds 유지
+          });
+          console.log("[handleStatusChange] Paused other task due to new task starting:", t.id);
+        } catch (error) {
+          console.error("[handleStatusChange] Failed to pause other task:", t.id, error);
+        }
+      }
+    }
+
     await updateTask({
       id: taskId,
       status: newStatus,
@@ -456,12 +477,26 @@ export const MainPage = () => {
   // 진행중인 모든 태스크를 일시정지
   const pauseAllInProgressTasks = useCallback(async () => {
     const inProgressTasks = tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
+    if (inProgressTasks.length === 0) return;
+
     for (const task of inProgressTasks) {
-      await updateTask({
-        id: task.id,
-        status: TaskStatus.PAUSED,
-        lastPausedAt: new Date().toISOString(),
-      });
+      try {
+        await updateTask({
+          id: task.id,
+          status: TaskStatus.PAUSED,
+          lastPausedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("[MainPage] Failed to pause task:", task.id, error);
+      }
+    }
+
+    // 트레이 타이머 중지
+    try {
+      const { stopTrayTimer } = await import("@shared/lib/tray");
+      await stopTrayTimer(true);
+    } catch (error) {
+      console.error("[MainPage] Failed to stop tray timer after pausing all tasks:", error);
     }
   }, [tasks, updateTask]);
 
