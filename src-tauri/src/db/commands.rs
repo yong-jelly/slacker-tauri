@@ -137,6 +137,7 @@ pub fn get_db_status(app_handle: AppHandle, state: State<DbState>) -> Result<DbS
         if path.exists() {
             let conn = Connection::open(&path).map_err(|e| e.to_string())?;
             run_migrations(&conn)?;
+            reset_all_tasks_to_paused(&conn)?;
         }
         return build_status(&path, true);
     }
@@ -150,6 +151,7 @@ pub fn get_db_status(app_handle: AppHandle, state: State<DbState>) -> Result<DbS
         if path.exists() {
             let conn = Connection::open(&path).map_err(|e| e.to_string())?;
             run_migrations(&conn)?;
+            reset_all_tasks_to_paused(&conn)?;
         }
         
         return build_status(&path, true);
@@ -185,6 +187,7 @@ pub fn init_db(
     // DB 생성 및 마이그레이션
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     run_migrations(&conn)?;
+    reset_all_tasks_to_paused(&conn)?;
 
     // 설정 저장
     save_config_path(&app_handle, &db_path)?;
@@ -209,6 +212,7 @@ pub fn load_existing_db(
     // DB 연결 테스트 및 마이그레이션
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     run_migrations(&conn)?;
+    reset_all_tasks_to_paused(&conn)?;
 
     // 설정 저장
     save_config_path(&app_handle, &db_path)?;
@@ -1003,6 +1007,15 @@ pub fn query_table(
 // ============================================================================
 // 내부 헬퍼 함수들
 // ============================================================================
+
+/// 앱 시작 시 모든 IN_PROGRESS 작업을 PAUSED로 변경
+fn reset_all_tasks_to_paused(conn: &Connection) -> Result<(), String> {
+    conn.execute(
+        "UPDATE tbl_task SET status = 'PAUSED' WHERE status = 'IN_PROGRESS'",
+        [],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 fn map_task_row(row: &rusqlite::Row) -> rusqlite::Result<Task> {
     Ok(Task {

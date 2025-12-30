@@ -4,6 +4,7 @@ import { MainPage, OnboardingPage, SettingsPage } from "@pages/index";
 import { TaskDetailPage } from "@pages/TaskDetailPage";
 import { TaskWidgetPage } from "@pages/TaskWidgetPage";
 import { useDbStatus, useTasks } from "@shared/hooks";
+import { stopTrayTimer } from "@shared/lib/tray";
 
 // 앱 상태 타입
 type AppState = "loading" | "onboarding" | "ready";
@@ -25,6 +26,11 @@ export const App = () => {
 const AppRoot = () => {
   const { status, loading } = useDbStatus();
   const [appState, setAppState] = useState<AppState>("loading");
+
+  // 앱 시작 시 트레이 타이머 초기화 (방어적 코드)
+  useEffect(() => {
+    stopTrayTimer(true).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (loading) {

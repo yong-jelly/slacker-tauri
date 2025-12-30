@@ -64,7 +64,7 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
   } = useTaskTimer({
     expectedDuration: inProgressTask?.expectedDuration ?? 5,
     savedRemainingTimeSeconds: inProgressTask?.remainingTimeSeconds,
-    isInProgress: !!inProgressTask,
+    isInProgress: inProgressTask?.status === TaskStatus.IN_PROGRESS,
     taskTitle: inProgressTask?.title ?? "",
     onStatusChange: onTaskStatusChange,
   });

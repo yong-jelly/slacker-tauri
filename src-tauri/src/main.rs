@@ -87,12 +87,16 @@ fn main() {
                 })
                 .build(app)?;
 
+            // 초기 트레이 타이틀 설정
+            update_tray(app.handle(), "미루미");
+
             // 백그라운드 타이머 루프 (1초마다)
             let app_handle = app.handle().clone();
             let timer_state = app.state::<SharedTimerState>().inner().clone();
             
             tauri::async_runtime::spawn(async move {
                 let mut ticker = interval(Duration::from_secs(1));
+                println!("[Rust] Timer loop started");
                 
                 loop {
                     ticker.tick().await;
@@ -102,12 +106,15 @@ fn main() {
                         // 1초 감소
                         state.remaining_secs -= 1;
                         
+                        println!("[Rust] Timer ticking: {} - {}s remaining", state.task_title, state.remaining_secs);
+
                         // 트레이 업데이트
                         let title = format_tray_title(&state.task_title, state.remaining_secs);
                         update_tray(&app_handle, &title);
                         
                         // 타이머 종료 시
                         if state.remaining_secs == 0 {
+                            println!("[Rust] Timer ended: {}", state.task_title);
                             state.is_running = false;
                             update_tray(&app_handle, "미루미");
                             let _ = app_handle.emit("timer-ended", ());
@@ -214,6 +221,7 @@ async fn start_tray_timer(
     remaining_secs: u64,
     task_title: String,
 ) -> Result<(), String> {
+    println!("[Rust] start_tray_timer: title={}, secs={}", task_title, remaining_secs);
     let mut timer = state.lock().await;
     timer.remaining_secs = remaining_secs;
     timer.task_title = task_title.clone();
@@ -234,6 +242,7 @@ async fn stop_tray_timer(
     app: AppHandle,
     update_to_slacker: Option<bool>,
 ) -> Result<u64, String> {
+    println!("[Rust] stop_tray_timer: update_to_slacker={:?}", update_to_slacker);
     let mut timer = state.lock().await;
     timer.is_running = false;
     let remaining = timer.remaining_secs;

@@ -318,14 +318,14 @@ export const TaskItem = ({
   const containerClassName = `
     group relative overflow-hidden transition-colors rounded-xl ${isInProgress ? "cursor-default" : "cursor-pointer"}
     ${isDetailExpanded
-      ? "bg-[#232528] text-gray-100 ring-2 ring-gray-500/70 shadow-lg shadow-gray-900/50"
+      ? "bg-bg-tertiary text-gray-100 ring-2 ring-gray-500/70 shadow-lg shadow-gray-900/50"
       : isInProgress
-        ? "bg-[#2B2D31] text-gray-200 hover:bg-[#2A2C30]"
+        ? "bg-bg-sidebar text-gray-200 hover:bg-bg-sidebar/90"
         : isDelayed
-          ? "bg-[#2B2D31] text-gray-200 border-l-2 border-red-500/50 hover:bg-[#32343A]"
+          ? "bg-bg-sidebar text-gray-200 border-l-2 border-red-500/50 hover:bg-bg-sidebar/80"
           : isPaused
-            ? "bg-[#2B2D31] text-gray-200 border-l-2 border-yellow-500/50 hover:bg-[#32343A]"
-            : "bg-[#2B2D31] text-gray-200 hover:bg-[#32343A]"
+            ? "bg-bg-sidebar text-gray-200 border-l-2 border-yellow-500/50 hover:bg-bg-sidebar/80"
+            : "bg-bg-sidebar text-gray-200 hover:bg-bg-sidebar/80"
     }
   `;
 

@@ -120,54 +120,6 @@ export const MainPage = () => {
     requestNotificationPermission();
   }, []);
 
-  // 프로그램 시작 시 IN_PROGRESS 상태인 모든 태스크를 PAUSED로 변경
-  const hasInitializedRef = useRef(false);
-  useEffect(() => {
-    if (loading || hasInitializedRef.current) return;
-    
-    const inProgressTasksOnStart = tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
-    if (inProgressTasksOnStart.length > 0) {
-      hasInitializedRef.current = true;
-      
-      // Rust 트레이 타이머 중지 (강제 종료 후 재시작 시 타이머가 남아있을 수 있음)
-      stopTrayTimer(true).catch((error) => {
-        console.error("[MainPage] Failed to stop tray timer on startup:", error);
-      });
-      
-      // 모든 IN_PROGRESS 태스크를 PAUSED로 변경
-      // 남은 시간은 그대로 유지하되, 상태만 PAUSED로 변경하여 사용자가 재시작할 수 있도록 함
-      Promise.all(
-        inProgressTasksOnStart.map(async (task) => {
-          try {
-            // 남은 시간이 없거나 유효하지 않으면 예상 시간으로 초기화
-            const remainingTimeSeconds = task.remainingTimeSeconds && task.remainingTimeSeconds > 0
-              ? task.remainingTimeSeconds
-              : (task.expectedDuration ?? 5) * 60;
-            
-            await updateTask({
-              id: task.id,
-              status: TaskStatus.PAUSED,
-              lastPausedAt: new Date().toISOString(),
-              remainingTimeSeconds, // 남은 시간 명시적으로 저장
-            });
-            console.log("[MainPage] Paused task on startup:", {
-              taskId: task.id,
-              title: task.title,
-              remainingTimeSeconds,
-            });
-          } catch (error) {
-            console.error("[MainPage] Failed to pause task on startup:", task.id, error);
-          }
-        })
-      ).catch((error) => {
-        console.error("[MainPage] Failed to pause tasks on startup:", error);
-      });
-    } else {
-      // IN_PROGRESS 태스크가 없어도 초기화 플래그는 설정하여 이후 실행 방지
-      hasInitializedRef.current = true;
-    }
-  }, [loading, tasks, updateTask]);
-
   // 메뉴별 필터링된 태스크
   const filteredTasks = useMemo(() => {
     return filterTasksByMenu(tasks, activeMenuId);
