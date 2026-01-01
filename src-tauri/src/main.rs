@@ -125,12 +125,13 @@ fn main() {
 
             Ok(())
         })
-        // 창 닫기 버튼 클릭 시 앱 종료 대신 최소화 (macOS 호환성)
+        // 창 닫기 버튼 클릭 시 앱 종료 대신 숨김 처리 (Slack 스타일)
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                // hide() 대신 minimize() 사용 - macOS에서 더 잘 작동
-                let _ = window.minimize();
-                api.prevent_close();
+                if window.label() == "main" {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -171,8 +172,13 @@ fn main() {
             list_tables,
             query_table,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Reopen { .. } = event {
+                show_main_window(app_handle);
+            }
+        });
 }
 
 // 메인 창 표시 (트레이에서 호출)

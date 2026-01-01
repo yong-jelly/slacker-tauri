@@ -132,14 +132,6 @@ export const TaskItem = ({
     onToggleExpand?.();
   }, [isInProgress, onToggleExpand]);
 
-  const handleHeaderClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    // 헤더 클릭 시 타이틀 편집 모드로 전환
-    if (isDetailExpanded && !isEditingTitle && !isInProgress && !isCompleted) {
-      handleStartEditing();
-    }
-  }, [isDetailExpanded, isEditingTitle, isInProgress, isCompleted]);
-
   const handleCompleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     handleComplete(e);
@@ -316,16 +308,17 @@ export const TaskItem = ({
 
   // 컨테이너 스타일 계산
   const containerClassName = `
-    group relative overflow-hidden transition-colors rounded-xl ${isInProgress ? "cursor-default" : "cursor-pointer"}
+    group relative overflow-hidden transition-all rounded-xl ${isInProgress ? "cursor-default" : "cursor-pointer"}
+    border border-white/10
     ${isDetailExpanded
-      ? "bg-bg-tertiary text-gray-100 ring-2 ring-gray-500/70 shadow-lg shadow-gray-900/50"
+      ? "bg-[#2d302d] text-gray-100 ring-2 ring-white/20 shadow-xl shadow-black/40"
       : isInProgress
-        ? "bg-bg-sidebar text-gray-200 hover:bg-bg-sidebar/90"
+        ? "bg-[#2a2d2a] text-gray-200 border-white/20"
         : isDelayed
-          ? "bg-bg-sidebar text-gray-200 border-l-2 border-red-500/50 hover:bg-bg-sidebar/80"
+          ? "bg-[#2d2222] text-gray-200 hover:bg-[#3d2d2d] border-red-500/10"
           : isPaused
-            ? "bg-bg-sidebar text-gray-200 border-l-2 border-yellow-500/50 hover:bg-bg-sidebar/80"
-            : "bg-bg-sidebar text-gray-200 hover:bg-bg-sidebar/80"
+            ? "bg-[#2d2c22] text-gray-200 hover:bg-[#3d3b2d] border-yellow-500/10"
+            : "bg-[#232623] text-gray-200 hover:bg-[#2a2d2a] border-white/5"
     }
   `;
 
@@ -346,7 +339,7 @@ export const TaskItem = ({
         <TaskItemProgressBg progress={progress} bgColor={urgencyColors.bg} />
       )}
 
-      {/* 랜덤 외곽 라인 플래시 이펙트 */}
+      {/* 진행 중일 때만 외곽 라인 플래시 이펙트 (지연된 태스크는 내부 텍스트로만 표시) */}
       <AnimatePresence>
         {isInProgress && showBorderFlash && <TaskItemBorderEffect />}
       </AnimatePresence>
@@ -359,8 +352,7 @@ export const TaskItem = ({
       >
         {/* 상단: 원형 프로그레스 + 제목 + 컨트롤 버튼 */}
         <div 
-          className={`flex items-center gap-4 ${isDetailExpanded && !isEditingTitle ? "cursor-pointer" : ""}`}
-          onClick={isDetailExpanded && !isEditingTitle ? handleHeaderClick : undefined}
+          className={`flex items-center gap-4 ${isDetailExpanded && !isEditingTitle ? "cursor-default" : ""}`}
         >
           {/* 원형 프로그레스 인디케이터 / 체크박스 */}
           {!isEditingTitle && (
