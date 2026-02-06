@@ -4,7 +4,6 @@ import { Task, TaskStatus, TaskPriority, TaskMemo, TaskNote, TimeExtensionHistor
 import { TaskSection, AppLayout } from "@widgets/index";
 import { openTaskWindow } from "@shared/lib/openTaskWindow";
 import { requestNotificationPermission, sendTaskCompletedNotification } from "@shared/lib/notification";
-import { stopTrayTimer } from "@shared/lib/tray";
 import { useTasks, useSidebarCounts } from "@shared/hooks";
 import { type SidebarMenuId } from "@widgets/layout/Sidebar";
 import type { StatusChangeOptions, SortType } from "@features/tasks/shared/types";
@@ -83,12 +82,10 @@ export const MainPage = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 각 섹션별 정렬 상태 관리 (진행중 섹션은 정렬 없음)
-  const [pausedSortType, setPausedSortType] = useState<SortType>("created");
   const [inboxSortType, setInboxSortType] = useState<SortType>("created");
   const [filteredSortType, setFilteredSortType] = useState<SortType>("created");
 
   // 사용자 정의 순서 (드래그앤드롭으로 정렬된 태스크 ID 배열)
-  const [customOrderPaused, setCustomOrderPaused] = useState<string[]>([]);
   const [customOrderInbox, setCustomOrderInbox] = useState<string[]>([]);
   const [customOrderFiltered, setCustomOrderFiltered] = useState<string[]>([]);
 
@@ -164,27 +161,20 @@ export const MainPage = () => {
     return tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
   }, [tasks]);
 
-  const pausedTasks = useMemo(() => {
-    const filtered = tasks.filter((t) => t.status === TaskStatus.PAUSED);
-    return sortTasks(filtered, pausedSortType, customOrderPaused);
-  }, [tasks, pausedSortType, customOrderPaused, sortTasks]);
-
   // 정렬된 필터링 태스크
   const sortedFilteredTasks = useMemo(() => {
     return sortTasks(filteredTasks, filteredSortType, customOrderFiltered);
   }, [filteredTasks, filteredSortType, customOrderFiltered, sortTasks]);
 
-  // 정렬된 inbox 태스크 (showAllSections일 때 사용)
+  // 정렬된 통합 할일 목록 (일시정지 + 할일)
   const sortedInboxTasks = useMemo(() => {
-    return sortTasks(filteredTasks, inboxSortType, customOrderInbox);
-  }, [filteredTasks, inboxSortType, customOrderInbox, sortTasks]);
+    const inboxAndPausedTasks = tasks.filter(
+      (t) => t.status === TaskStatus.INBOX || t.status === TaskStatus.PAUSED
+    );
+    return sortTasks(inboxAndPausedTasks, inboxSortType, customOrderInbox);
+  }, [tasks, inboxSortType, customOrderInbox, sortTasks]);
 
   // 드래그앤드롭 순서 변경 핸들러
-  const handlePausedReorder = useCallback((taskIds: string[]) => {
-    setCustomOrderPaused(taskIds);
-    setPausedSortType("custom");
-  }, []);
-
   const handleInboxReorder = useCallback((taskIds: string[]) => {
     setCustomOrderInbox(taskIds);
     setInboxSortType("custom");
@@ -460,15 +450,15 @@ export const MainPage = () => {
   // 현재 화면에 표시되는 모든 태스크 목록 (네비게이션용)
   const visibleTasks = useMemo(() => {
     if (showAllSections) {
-      return [...inProgressTasks, ...pausedTasks, ...sortedInboxTasks];
+      return [...inProgressTasks, ...sortedInboxTasks];
     }
     return sortedFilteredTasks;
-  }, [showAllSections, inProgressTasks, pausedTasks, sortedInboxTasks, sortedFilteredTasks]);
+  }, [showAllSections, inProgressTasks, sortedInboxTasks, sortedFilteredTasks]);
 
   // 태스크 키보드 네비게이션
-  const { focusedTaskId, moveFocus, handleEnter } = useTaskKeyboardNavigation({
+  const { focusedTaskId, moveFocus } = useTaskKeyboardNavigation({
     tasks: visibleTasks,
-    onSelect: (taskId) => {
+    onSelect: () => {
       // Enter 키 입력 시 상세 확장/축소 토글을 위해 TaskItem 내부 로직이 동작하도록 함
       // 여기서는 별도 동작 없음 (TaskItem이 Enter 이벤트를 처리함)
       // 하지만 TaskList에서 focusedTaskId를 받아 하이라이트하고 있으므로,
@@ -493,7 +483,27 @@ export const MainPage = () => {
       },
       "nav-up": () => moveFocus("up"),
       "nav-down": () => moveFocus("down"),
-      "expand-task": handleEnter,
+      "expand-task": () => {
+        if (focusedTaskId) {
+          const task = tasks.find((t) => t.id === focusedTaskId);
+          if (task) {
+            // MainPage에서 selectedTaskId를 사용하여 TaskItem의 isExpanded 상태를 제어함
+            // TaskList에서 expandedTaskId를 로컬 상태로 가지고 있지만, 
+            // TaskItem의 isExpanded prop은 (expandedTaskId === task.id)로 결정됨.
+            // 하지만 MainPage에서 selectedTaskId를 넘겨주는 구조가 아니므로 (TaskSection -> TaskList)
+            // TaskList 내부의 로컬 상태인 expandedTaskId를 외부에서 조절할 수 있어야 함.
+            
+            // 현재 구조상 가장 깔끔한 방법은 TaskItem이 직접 Space 이벤트를 처리하는 것이지만,
+            // 이미 useKeyboardShortcuts가 전역에서 이벤트를 가로채고 있으므로
+            // 커스텀 이벤트를 발송하여 TaskList가 이를 듣게 하거나, 
+            // TaskList에 ref를 전달하여 명령을 내리는 방식이 필요함.
+            
+            // 여기서는 간단하게 커스텀 이벤트를 사용하여 TaskList의 상태를 변경하도록 함.
+            const event = new CustomEvent("toggle-task-expand", { detail: { taskId: focusedTaskId } });
+            window.dispatchEvent(event);
+          }
+        }
+      },
       "toggle-play": async () => {
         if (focusedTaskId) {
           const task = tasks.find((t) => t.id === focusedTaskId);
@@ -554,13 +564,14 @@ export const MainPage = () => {
       return inProgressTasks[0];
     }
     // 일시정지된 태스크 중 가장 최근에 실행된 것 (lastRunAt 기준)
+    const pausedTasks = tasks.filter((t) => t.status === TaskStatus.PAUSED);
     const sortedPaused = [...pausedTasks].sort((a, b) => {
       const aTime = a.lastRunAt ? new Date(a.lastRunAt).getTime() : 0;
       const bTime = b.lastRunAt ? new Date(b.lastRunAt).getTime() : 0;
       return bTime - aTime;
     });
     return sortedPaused.length > 0 ? sortedPaused[0] : null;
-  }, [inProgressTasks, pausedTasks]);
+  }, [inProgressTasks, tasks]);
 
   // Widget 모드에서 Task 상태 변경 핸들러
   const handleWidgetStatusChange = useCallback((status: TaskStatus) => {
@@ -657,81 +668,56 @@ export const MainPage = () => {
           {/* inbox 메뉴: 전체 섹션 표시 */}
           {showAllSections && (
             <>
-          {/* 진행중 섹션 */}
-          <TaskSection
-            title="진행중"
-            count={inProgressTasks.length}
-            tasks={inProgressTasks}
-            selectedTaskId={selectedTaskId}
-            onTaskSelect={handleTaskSelect}
-            onStatusChange={handleStatusChange}
-            onAddMemo={handleAddMemo}
-            onAddNote={handleAddNote}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
-            onToggleImportant={handleToggleImportant}
-            onDelete={handleDelete}
-            onTargetDateChange={handleTargetDateChange}
-            onArchive={handleArchive}
-            onExtendTime={handleExtendTime}
-            onTitleChange={handleTitleChange}
-            sectionType="inProgress"
-            focusedTaskId={focusedTaskId}
-          />
+              {/* 진행중 섹션 */}
+              <TaskSection
+                title="진행중"
+                count={inProgressTasks.length}
+                tasks={inProgressTasks}
+                selectedTaskId={selectedTaskId}
+                onTaskSelect={handleTaskSelect}
+                onStatusChange={handleStatusChange}
+                onAddMemo={handleAddMemo}
+                onAddNote={handleAddNote}
+                onAddTag={handleAddTag}
+                onRemoveTag={handleRemoveTag}
+                onToggleImportant={handleToggleImportant}
+                onDelete={handleDelete}
+                onTargetDateChange={handleTargetDateChange}
+                onArchive={handleArchive}
+                onExtendTime={handleExtendTime}
+                onTitleChange={handleTitleChange}
+                sectionType="inProgress"
+                focusedTaskId={focusedTaskId}
+              />
 
-          {/* 일시정지 섹션 */}
-          <TaskSection
-            title="일시정지"
-            count={pausedTasks.length}
-            tasks={pausedTasks}
-            selectedTaskId={selectedTaskId}
-            onTaskSelect={handleTaskSelect}
-            onStatusChange={handleStatusChange}
-            onAddMemo={handleAddMemo}
-            onAddNote={handleAddNote}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
-            onToggleImportant={handleToggleImportant}
-            onDelete={handleDelete}
-            onTargetDateChange={handleTargetDateChange}
-            onArchive={handleArchive}
-            onExtendTime={handleExtendTime}
-            onTitleChange={handleTitleChange}
-            sectionType="paused"
-            sortType={pausedSortType}
-            onSortChange={setPausedSortType}
-            onTasksReorder={handlePausedReorder}
-            focusedTaskId={focusedTaskId}
-          />
-
-          {/* 할일 섹션 */}
-          <TaskSection
-            title="할일"
-            count={sortedInboxTasks.length}
-            tasks={sortedInboxTasks}
-            selectedTaskId={selectedTaskId}
-            onTaskSelect={handleTaskSelect}
-            onStatusChange={handleStatusChange}
-            onAddMemo={handleAddMemo}
-            onAddNote={handleAddNote}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
-            onToggleImportant={handleToggleImportant}
-            onDelete={handleDelete}
-            onTargetDateChange={handleTargetDateChange}
-            onArchive={handleArchive}
-            onExtendTime={handleExtendTime}
-            onTitleChange={handleTitleChange}
-            showAddTaskForm={isAddingTask}
-            onAddTask={handleAddTask}
-            onCloseAddTask={handleCloseAddTask}
-            initialTargetDate={getInitialTargetDate()}
-            sectionType="inbox"
-            sortType={inboxSortType}
-            onSortChange={setInboxSortType}
-            onTasksReorder={handleInboxReorder}
-            focusedTaskId={focusedTaskId}
-          />
+              {/* 할일 섹션 (일시정지 포함) */}
+              <TaskSection
+                title="할일"
+                count={sortedInboxTasks.length}
+                tasks={sortedInboxTasks}
+                selectedTaskId={selectedTaskId}
+                onTaskSelect={handleTaskSelect}
+                onStatusChange={handleStatusChange}
+                onAddMemo={handleAddMemo}
+                onAddNote={handleAddNote}
+                onAddTag={handleAddTag}
+                onRemoveTag={handleRemoveTag}
+                onToggleImportant={handleToggleImportant}
+                onDelete={handleDelete}
+                onTargetDateChange={handleTargetDateChange}
+                onArchive={handleArchive}
+                onExtendTime={handleExtendTime}
+                onTitleChange={handleTitleChange}
+                showAddTaskForm={isAddingTask}
+                onAddTask={handleAddTask}
+                onCloseAddTask={handleCloseAddTask}
+                initialTargetDate={getInitialTargetDate()}
+                sectionType="inbox"
+                sortType={inboxSortType}
+                onSortChange={setInboxSortType}
+                onTasksReorder={handleInboxReorder}
+                focusedTaskId={focusedTaskId}
+              />
             </>
           )}
 
