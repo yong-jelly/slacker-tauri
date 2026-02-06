@@ -39,6 +39,8 @@ interface TaskSectionProps {
   onSortChange?: (sortType: SortType) => void;
   /** 태스크 순서 변경 핸들러 (드래그앤드롭) */
   onTasksReorder?: (taskIds: string[]) => void;
+  /** 키보드 포커스된 태스크 ID */
+  focusedTaskId?: string | null;
 }
 
 // 섹션 타입에 따른 빈 상태 정보
@@ -107,6 +109,7 @@ export const TaskSection = ({
   sortType = "created",
   onSortChange,
   onTasksReorder,
+  focusedTaskId,
 }: TaskSectionProps) => {
   const emptyState = getEmptyStateInfo(sectionType);
   const EmptyIcon = emptyState.icon;
@@ -166,6 +169,7 @@ export const TaskSection = ({
           onTitleChange={onTitleChange}
           enableDragDrop={sortType === "custom" || !!onTasksReorder}
           onReorder={onTasksReorder}
+          focusedTaskId={focusedTaskId}
         />
       )}
     </div>

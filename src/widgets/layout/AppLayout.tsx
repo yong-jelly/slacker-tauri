@@ -11,6 +11,8 @@ import { formatTimeMs } from "@features/tasks/shared/lib/timeFormat";
 import { useTaskTimer } from "@features/tasks/shared/hooks/useTaskTimer";
 import { type SidebarCounts } from "@shared/hooks";
 import { saveWindowState, loadWindowState, getDefaultWindowState } from "@shared/lib/windowStateStorage";
+import { useKeyboardShortcuts } from "@shared/hooks/useKeyboardShortcuts";
+import { KeyboardShortcutsHelp } from "@shared/ui/KeyboardShortcutsHelp";
 
 // 태스크 목록 메뉴 ID 목록
 const TASK_LIST_MENU_IDS: SidebarMenuId[] = ["inbox", "completed", "starred", "today", "tomorrow", "overdue", "archive"];
@@ -52,6 +54,7 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
   const [isWidgetMode, setIsWidgetMode] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showWidgetButtons, setShowWidgetButtons] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const appWindow = getCurrentWindow();
 
   // Widget 모드용 타이머 훅
@@ -93,6 +96,31 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
   const handleToggleSidebar = () => {
     setIsSidebarOpen((prev) => !prev);
   };
+
+  // 키보드 단축키 설정
+  useKeyboardShortcuts({
+    handlers: {
+      "toggle-sidebar": handleToggleSidebar,
+      "toggle-widget": () => {
+        // 위젯 모드 전환은 진행중/일시정지 태스크가 있을 때만 가능
+        if (isWidgetMode || (inProgressTask && (inProgressTask.status === TaskStatus.IN_PROGRESS || inProgressTask.status === TaskStatus.PAUSED))) {
+          handleToggleWidgetMode();
+        }
+      },
+      "show-help": () => setIsHelpOpen(true),
+      "settings": () => onMenuSelect?.("settings"),
+      "nav-inbox": () => onMenuSelect?.("inbox"),
+      "nav-completed": () => onMenuSelect?.("completed"),
+      "nav-starred": () => onMenuSelect?.("starred"),
+      "nav-today": () => onMenuSelect?.("today"),
+      "nav-tomorrow": () => onMenuSelect?.("tomorrow"),
+      "nav-overdue": () => onMenuSelect?.("overdue"),
+      "nav-archive": () => onMenuSelect?.("archive"),
+    },
+    // 위젯 모드일 때는 위젯 토글만 허용하고 나머지는 비활성화하는 것이 좋겠으나,
+    // 현재 구현상 전체를 비활성화하지 않고 개별적으로 처리하거나 그냥 둠
+    disabled: false,
+  });
 
   const handleSignIn = () => {
     console.log("Sign in clicked");
@@ -723,6 +751,9 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
         {/* 메인 콘텐츠 */}
         <main className="flex-1 overflow-hidden">{children}</main>
       </div>
+
+      {/* 단축키 도움말 모달 */}
+      <KeyboardShortcutsHelp isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </div>
   );
 };

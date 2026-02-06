@@ -8,6 +8,8 @@ import { stopTrayTimer } from "@shared/lib/tray";
 import { useTasks, useSidebarCounts } from "@shared/hooks";
 import { type SidebarMenuId } from "@widgets/layout/Sidebar";
 import type { StatusChangeOptions, SortType } from "@features/tasks/shared/types";
+import { useTaskKeyboardNavigation } from "@features/tasks/shared/hooks/useTaskKeyboardNavigation";
+import { useKeyboardShortcuts } from "@shared/hooks/useKeyboardShortcuts";
 
 // 오늘/내일 날짜 비교용 헬퍼
 const isSameDay = (date1: Date, date2: Date) => {
@@ -410,6 +412,8 @@ export const MainPage = () => {
   }, []);
 
   // cmd+n 단축키 핸들러 (할일/오늘/내일 메뉴에서만 동작)
+  // useKeyboardShortcuts로 대체됨
+  /*
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // cmd+n (macOS) 또는 ctrl+n (Windows/Linux)
@@ -425,6 +429,7 @@ export const MainPage = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeMenuId, handleOpenAddTask]);
+  */
 
   // 진행중인 모든 태스크를 일시정지
   const pauseAllInProgressTasks = useCallback(async () => {
@@ -451,6 +456,76 @@ export const MainPage = () => {
       console.error("[MainPage] Failed to stop tray timer after pausing all tasks:", error);
     }
   }, [tasks, updateTask]);
+
+  // 현재 화면에 표시되는 모든 태스크 목록 (네비게이션용)
+  const visibleTasks = useMemo(() => {
+    if (showAllSections) {
+      return [...inProgressTasks, ...pausedTasks, ...sortedInboxTasks];
+    }
+    return sortedFilteredTasks;
+  }, [showAllSections, inProgressTasks, pausedTasks, sortedInboxTasks, sortedFilteredTasks]);
+
+  // 태스크 키보드 네비게이션
+  const { focusedTaskId, moveFocus, handleEnter } = useTaskKeyboardNavigation({
+    tasks: visibleTasks,
+    onSelect: (taskId) => {
+      // Enter 키 입력 시 상세 확장/축소 토글을 위해 TaskItem 내부 로직이 동작하도록 함
+      // 여기서는 별도 동작 없음 (TaskItem이 Enter 이벤트를 처리함)
+      // 하지만 TaskList에서 focusedTaskId를 받아 하이라이트하고 있으므로,
+      // TaskItem 내부에서 Enter 처리가 안 될 경우를 대비해 여기서 처리할 수도 있음
+      
+      // 현재는 TaskItem 내부에서 Enter를 처리하므로 여기서는 비워둠
+      // 만약 TaskItem이 포커스된 상태에서 Enter를 눌렀을 때 상세가 열리지 않는다면
+      // 여기서 ref를 통해 toggleExpand를 호출하거나 해야 함
+      
+      // 임시: Enter 누르면 상세 창 열기 (선택 사항)
+      // handleTaskSelect(taskId);
+    },
+  });
+
+  // 키보드 단축키 등록
+  useKeyboardShortcuts({
+    handlers: {
+      "add-task": () => {
+        if (activeMenuId === "inbox" || activeMenuId === "today" || activeMenuId === "tomorrow") {
+          handleOpenAddTask();
+        }
+      },
+      "nav-up": () => moveFocus("up"),
+      "nav-down": () => moveFocus("down"),
+      "expand-task": handleEnter,
+      "toggle-play": async () => {
+        if (focusedTaskId) {
+          const task = tasks.find((t) => t.id === focusedTaskId);
+          if (task) {
+            if (task.status === TaskStatus.IN_PROGRESS) {
+              await handleStatusChange(task.id, TaskStatus.PAUSED, { remainingTimeSeconds: task.remainingTimeSeconds });
+            } else if (task.status === TaskStatus.PAUSED || task.status === TaskStatus.INBOX) {
+              await handleStatusChange(task.id, TaskStatus.IN_PROGRESS);
+            }
+          }
+        }
+      },
+      "complete-task": async () => {
+        if (focusedTaskId) {
+          const task = tasks.find((t) => t.id === focusedTaskId);
+          if (task && task.status !== TaskStatus.COMPLETED) {
+            await handleStatusChange(task.id, TaskStatus.COMPLETED);
+          }
+        }
+      },
+      "delete-task": async () => {
+        if (focusedTaskId) {
+          await handleDelete(focusedTaskId);
+        }
+      },
+      "star-task": async () => {
+        if (focusedTaskId) {
+          await handleToggleImportant(focusedTaskId);
+        }
+      },
+    },
+  });
 
   // 사이드바 메뉴 선택 핸들러
   const handleMenuSelect = useCallback(async (menuId: SidebarMenuId) => {
@@ -601,6 +676,7 @@ export const MainPage = () => {
             onExtendTime={handleExtendTime}
             onTitleChange={handleTitleChange}
             sectionType="inProgress"
+            focusedTaskId={focusedTaskId}
           />
 
           {/* 일시정지 섹션 */}
@@ -625,6 +701,7 @@ export const MainPage = () => {
             sortType={pausedSortType}
             onSortChange={setPausedSortType}
             onTasksReorder={handlePausedReorder}
+            focusedTaskId={focusedTaskId}
           />
 
           {/* 할일 섹션 */}
@@ -653,6 +730,7 @@ export const MainPage = () => {
             sortType={inboxSortType}
             onSortChange={setInboxSortType}
             onTasksReorder={handleInboxReorder}
+            focusedTaskId={focusedTaskId}
           />
             </>
           )}
@@ -684,6 +762,7 @@ export const MainPage = () => {
               sortType={filteredSortType}
               onSortChange={setFilteredSortType}
               onTasksReorder={handleFilteredReorder}
+              focusedTaskId={focusedTaskId}
             />
           )}
 

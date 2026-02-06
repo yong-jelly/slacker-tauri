@@ -23,6 +23,8 @@ interface TaskListProps {
   enableDragDrop?: boolean;
   /** 태스크 순서 변경 핸들러 */
   onReorder?: (taskIds: string[]) => void;
+  /** 키보드 포커스된 태스크 ID */
+  focusedTaskId?: string | null;
 }
 
 export const TaskList = ({
@@ -42,6 +44,7 @@ export const TaskList = ({
   onTitleChange,
   enableDragDrop,
   onReorder,
+  focusedTaskId,
 }: TaskListProps) => {
   // 아코디언: 하나의 TaskItem만 펼쳐지도록 관리
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -121,9 +124,11 @@ export const TaskList = ({
       {tasks.map((task) => {
         const isDragging = draggedTaskId === task.id;
         const isDragOver = dragOverTaskId === task.id;
+        const isFocused = focusedTaskId === task.id;
         
         return (
           <div
+            id={`task-item-${task.id}`}
             key={task.id}
             ref={isDragging ? dragItemRef : null}
             draggable={enableDragDrop}
@@ -133,10 +138,10 @@ export const TaskList = ({
             onDrop={(e) => enableDragDrop && handleDrop(e, task.id)}
             onDragEnd={enableDragDrop ? handleDragEnd : undefined}
             className={`
-              relative group/drag
+              relative group/drag rounded-xl transition-all duration-150
               ${isDragging ? "opacity-50 scale-[0.98]" : ""}
               ${isDragOver ? "before:absolute before:inset-x-0 before:-top-1 before:h-0.5 before:bg-amber-500 before:rounded-full" : ""}
-              transition-all duration-150
+              ${isFocused ? "ring-2 ring-amber-500/50 z-10" : ""}
             `}
           >
             {/* 드래그 핸들 */}
