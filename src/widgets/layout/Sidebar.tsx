@@ -12,6 +12,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { type SidebarCounts } from "@shared/hooks";
+import { SHORTCUTS } from "@shared/lib/shortcuts";
 
 interface MenuItem {
   id: string;
@@ -120,6 +121,16 @@ export const Sidebar = ({ isOpen, activeItemId = "inbox", counts, onItemSelect }
     });
   };
 
+  // 메뉴 ID에 해당하는 단축키 찾기
+  const getShortcutKey = (menuId: string) => {
+    const shortcutId = `nav-${menuId}`;
+    const shortcut = SHORTCUTS.find(s => s.id === shortcutId);
+    if (!shortcut) return null;
+    
+    // "⌘+1" -> "⌘1" 형태로 변환
+    return shortcut.keys.split(" / ")[0].replace("+", "");
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -147,12 +158,13 @@ export const Sidebar = ({ isOpen, activeItemId = "inbox", counts, onItemSelect }
               <div className="mt-1.5 space-y-1">
                 {category.items.map((item) => {
                   const isActive = item.id === activeItemId;
+                  const shortcutKey = getShortcutKey(item.id);
 
                   return (
                     <button
                       key={item.id}
                       onClick={() => onItemSelect?.(item.id as SidebarMenuId)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all ${
+                      className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all ${
                         isActive
                           ? "bg-[#3d5a3d] text-white shadow-sm"
                           : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -166,6 +178,18 @@ export const Sidebar = ({ isOpen, activeItemId = "inbox", counts, onItemSelect }
                         {item.icon}
                       </span>
                       <span className="flex-1 text-left">{item.label}</span>
+                      
+                      {/* 단축키 힌트 */}
+                      {shortcutKey && (
+                        <span 
+                          className={`text-[10px] font-mono transition-opacity ${
+                            isActive ? "text-green-300/70" : "text-gray-600 opacity-0 group-hover:opacity-100"
+                          }`}
+                        >
+                          {shortcutKey}
+                        </span>
+                      )}
+
                       {item.count !== undefined && (
                         <span
                           className={`text-[11px] font-normal min-w-[20px] text-center px-1.5 py-0.5 rounded ${

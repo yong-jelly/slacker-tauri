@@ -1,0 +1,7 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경: 부드러운 라운드 사각형 또는 원형 -->
+  <rect width="1024" height="1024" rx="220" fill="#FF5F5F"/> 
+  <!-- 타이머 형상 (흰색 선) -->
+  <circle cx="512" cy="512" r="320" stroke="white" stroke-width="60"/>
+  <path d="M512 320V512L640 640" stroke="white" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

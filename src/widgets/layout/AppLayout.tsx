@@ -13,6 +13,9 @@ import { type SidebarCounts } from "@shared/hooks";
 import { saveWindowState, loadWindowState, getDefaultWindowState } from "@shared/lib/windowStateStorage";
 import { useKeyboardShortcuts } from "@shared/hooks/useKeyboardShortcuts";
 import { KeyboardShortcutsHelp } from "@shared/ui/KeyboardShortcutsHelp";
+import { useModifierHold } from "@shared/hooks/useModifierHold";
+import { CommandKeyOverlay } from "@shared/ui/CommandKeyOverlay";
+import { ShortcutHintBar } from "@shared/ui/ShortcutHintBar";
 
 // 태스크 목록 메뉴 ID 목록
 const TASK_LIST_MENU_IDS: SidebarMenuId[] = ["inbox", "completed", "starred", "today", "tomorrow", "overdue", "archive"];
@@ -56,6 +59,12 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
   const [showWidgetButtons, setShowWidgetButtons] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const appWindow = getCurrentWindow();
+
+  // CMD 키 홀드 감지 (도움말이 열려있거나 위젯 모드일 때는 비활성화)
+  const { isHolding: isCmdHolding } = useModifierHold({
+    triggerKey: "Meta",
+    delay: 500,
+  });
 
   // Widget 모드용 타이머 훅
   const {
@@ -749,11 +758,20 @@ export const AppLayout = ({ children, inProgressTask, onTaskStatusChange, onAddT
         </div>
 
         {/* 메인 콘텐츠 */}
-        <main className="flex-1 overflow-hidden">{children}</main>
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden relative">
+            {children}
+          </div>
+          {/* 하단 단축키 힌트 바 */}
+          <ShortcutHintBar activeMenuId={activeMenuId} />
+        </main>
       </div>
 
       {/* 단축키 도움말 모달 */}
       <KeyboardShortcutsHelp isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      
+      {/* CMD 홀드 오버레이 (도움말이 닫혀있고 위젯 모드가 아닐 때만 표시) */}
+      <CommandKeyOverlay isVisible={isCmdHolding && !isHelpOpen && !isWidgetMode} />
     </div>
   );
 };

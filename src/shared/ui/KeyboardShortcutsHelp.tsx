@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { SHORTCUTS, ShortcutDef } from "../lib/shortcuts";
 import { X } from "lucide-react";
+import { useEffect } from "react";
 
 interface KeyboardShortcutsHelpProps {
   isOpen: boolean;
@@ -8,6 +9,20 @@ interface KeyboardShortcutsHelpProps {
 }
 
 export const KeyboardShortcutsHelp = ({ isOpen, onClose }: KeyboardShortcutsHelpProps) => {
+  // Escape 키로 닫기
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   // 카테고리별로 단축키 그룹화
   const categories = {
     navigation: SHORTCUTS.filter((s) => s.category === "navigation"),
@@ -105,9 +120,16 @@ const ShortcutSection = ({ title, shortcuts }: { title: string; shortcuts: Short
             {shortcut.keys.split(" / ").map((keyCombo, i) => (
               <span key={i} className="flex items-center">
                 {i > 0 && <span className="mx-1 text-gray-600">/</span>}
-                <kbd className="px-2 py-1 min-w-[24px] text-center rounded bg-[#2B2D31] border border-white/10 text-xs font-mono text-gray-300 shadow-sm">
-                  {keyCombo}
-                </kbd>
+                <div className="flex gap-1">
+                  {keyCombo.split("+").map((key, j) => (
+                    <kbd 
+                      key={j}
+                      className="px-2 py-1 min-w-[24px] text-center rounded bg-[#2B2D31] border border-white/10 text-xs font-mono text-gray-300 shadow-sm"
+                    >
+                      {key}
+                    </kbd>
+                  ))}
+                </div>
               </span>
             ))}
           </div>
