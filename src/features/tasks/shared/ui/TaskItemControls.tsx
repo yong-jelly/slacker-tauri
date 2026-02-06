@@ -89,26 +89,7 @@ export const TaskItemControls = ({
     );
   }
 
-  // 기본 상태: 재생 버튼
-  return (
-    <div className="flex items-center gap-2">
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={onPlay}
-        className={`
-          flex items-center justify-center w-8 h-8 rounded-full transition-colors
-          ${isPaused
-            ? "bg-yellow-500/20 hover:bg-yellow-500/30"
-            : "bg-[#FF6B00]/20 hover:bg-[#FF6B00]/30"
-          }
-        `}
-      >
-        <Play
-          className={`w-4 h-4 ${isPaused ? "text-yellow-500" : "text-[#FF6B00]"}`}
-        />
-      </motion.button>
-    </div>
-  );
+  // 기본 상태: 재생 버튼 제거 (단축키 Space로 대체)
+  return null;
 };
 

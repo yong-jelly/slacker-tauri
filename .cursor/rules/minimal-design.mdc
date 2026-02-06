@@ -1,0 +1,104 @@
+---
+description: Minimal UI/UX Design Guidelines for macOS TODO App
+globs: src/**/*.{tsx,ts,scss,css}
+---
+
+# Minimal macOS TODO App UI/UX Guideline
+
+This document provides a systematic guideline for building a minimal, high-visibility, and calm macOS desktop TODO application. Optimize for speed, clarity, and "Figma vector" crispness.
+
+## 1. Design Principles (macOS-First)
+- **Hierarchy through Restraint**: Use white space and weight instead of borders and loud colors.
+- **Predictable Affordance**: Elements should look like they behave. Follow macOS native patterns (toolbars, sidebars).
+- **Keyboard-First**: Every primary action must be reachable via keyboard.
+- **Calm Visibility**: Reduce visual noise. Only show actions on hover or selection where appropriate.
+- **Forgiveness**: Support easy undo/redo and clear states for destructive actions.
+- **Native Material**: Use macOS vibrancy (blur) for sidebars and toolbars to feel integrated with the OS.
+
+## 2. Information Architecture + Layout
+- **Structure**: 
+  - **Sidebar**: Navigation (Lists, Filters like 'Today', 'Upcoming'). Width: 200pt–260pt.
+  - **Main List**: The core workspace. Centered or left-aligned with generous margins.
+  - **Inspector (Optional)**: Right-side pane for task details. Only shown when needed.
+- **Grid & Spacing**: 8pt base grid. Use 4pt for tight internal spacing.
+  - Default Padding: 16pt / 24pt for containers.
+  - Compact Mode: Reduce vertical padding by 30%.
+
+## 3. Typography (SF Pro)
+- **Scale**:
+  - **Title 1**: 20pt (Semibold) - View Headers
+  - **Body**: 13pt (Regular) - Standard Task Text (macOS Default)
+  - **Subheadline**: 11pt (Medium) - Metadata, Labels
+  - **Caption**: 10pt (Regular) - Secondary timestamps
+- **Rules**:
+  - Line Height: 1.3–1.4x for readability.
+  - Numeric Alignment: Use tabular numbers for dates and counts to prevent "jumping" during updates.
+  - Weight over Size: Use `Medium` or `Semibold` to emphasize, rather than increasing font size.
+
+## 4. Color + Materials
+- **Palette**: Neutral-first (Grays) with **1 primary accent color** (e.g., macOS Blue or Brand Color).
+- **Semantic Colors**:
+  - Success: Green (Completion)
+  - Warning: Orange (Due soon)
+  - Destructive: Red (Overdue, Delete)
+- **Contrast**: Maintain WCAG 2.1 AA compliance.
+- **Materials**: 
+  - Sidebar: `systemThinMaterial` (Vibrancy).
+  - Main Area: `systemBackground` (Solid or slightly translucent).
+
+## 5. Icons + "Figma Vector" Style
+- **Style**: Consistent 1.5px stroke width. Use SF Symbols where possible or custom icons with matching geometry.
+- **Tokens**:
+  - Corner Radius: 4pt (Small elements), 8pt (Cards/Buttons), 12pt+ (Large containers).
+  - Bounding Box: 16pt, 20pt, or 24pt. Center icons optically.
+- **Don't**: Mix filled and outlined icons in the same context. Avoid odd angles.
+
+## 6. Components & Interaction
+- **Task Input**: Inline "Quick Add" at the top or bottom of the list. Support `Cmd+N`.
+- **Task Row**: 
+  - Left: Checkbox (Custom vector or native style).
+  - Center: Title + Metadata (Tags, Date).
+  - Right: Hidden actions (Edit, Delete) revealed on hover.
+- **Context Menus**: Right-click on any task for full action set (Snooze, Move, Delete).
+
+## 7. States & Feedback
+- **Hover**: Subtle background change (e.g., `rgba(0,0,0,0.05)` in light mode).
+- **Focus**: Native macOS focus ring or 2px accent border.
+- **Motion**: Duration 120ms–180ms. Use "Ease-out" for entry, "Ease-in" for exit.
+- **Validation**: Inline, non-intrusive. Avoid modal alerts for simple errors.
+
+## 8. Accessibility + Keyboard
+- **Navigation**: `Up/Down` to select, `Enter` to edit/complete, `Cmd+K` for Command Palette.
+- **Hit Targets**: Minimum 24x24pt for icons, 44pt height for rows.
+- **VoiceOver**: Ensure all icons have descriptive `aria-label` (e.g., "Mark as complete").
+
+## 9. Content Style (Microcopy)
+- **Direct**: "Add Task" instead of "Click here to add a new item".
+- **Verbs**: Use active verbs (Complete, Snooze, Archive).
+- **Tense**: Consistent present tense.
+
+## 10. Example Spec: "Task Row"
+| Property | Value |
+| :--- | :--- |
+| **Height** | 44pt (Default), 32pt (Compact) |
+| **Padding** | 12pt Horizontal, 8pt Vertical |
+| **Checkbox** | 18x18pt, 4pt radius, 1.5px stroke |
+| **Typography** | 13pt Regular (Title), 11pt Medium (Date) |
+| **States** | **Hover**: Background `systemFill`. **Selected**: Accent Background. |
+| **Interaction** | Single click to select, Double click to edit title. |
+
+---
+
+## Design Review Checklist
+1. [ ] Does it use SF Pro with proper weights?
+2. [ ] Are stroke widths consistent (1.5px)?
+3. [ ] Is the 8pt grid followed?
+4. [ ] Are primary actions reachable via keyboard?
+5. [ ] Does it support both Light and Dark mode gracefully?
+6. [ ] Is there enough white space to prevent cognitive load?
+7. [ ] Are icons optically aligned with text?
+8. [ ] Is the accent color used sparingly?
+9. [ ] Do hover states provide immediate feedback?
+10. [ ] Is the microcopy concise and verb-led?
+11. [ ] Are hit targets large enough for easy clicking?
+12. [ ] Does it feel like a native macOS app?

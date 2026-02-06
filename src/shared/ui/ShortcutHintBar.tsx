@@ -15,7 +15,8 @@ export const ShortcutHintBar = ({ activeMenuId }: ShortcutHintBarProps) => {
     if (["inbox", "today", "tomorrow"].includes(activeMenuId)) {
       return [
         { keys: "⌘N", label: "추가" },
-        { keys: "Space", label: "시작/정지" },
+        { keys: "Enter", label: "시작/정지" },
+        { keys: "Space", label: "상세" },
         ...commonHints,
       ];
     }
@@ -26,7 +27,8 @@ export const ShortcutHintBar = ({ activeMenuId }: ShortcutHintBarProps) => {
 
     // Default (starred, overdue, etc.)
     return [
-      { keys: "Space", label: "시작/정지" },
+      { keys: "Enter", label: "시작/정지" },
+      { keys: "Space", label: "상세" },
       ...commonHints,
     ];
   };

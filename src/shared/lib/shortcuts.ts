@@ -17,13 +17,13 @@ export const SHORTCUTS: ShortcutDef[] = [
   
   // 태스크 관리
   { id: "add-task",     keys: "⌘+N", label: "새 태스크 추가", category: "task" },
-  { id: "toggle-play",  keys: "Space",label: "시작/일시정지",  category: "task" },
+  { id: "toggle-play",  keys: "Enter",label: "시작/정지",  category: "task" },
   { id: "complete-task", keys: "⌘+D", label: "완료 처리",     category: "task" },
   { id: "delete-task",  keys: "⌘+⌫", label: "삭제",          category: "task" },
   { id: "star-task",    keys: "⌘+S", label: "중요 표시 토글",  category: "task" },
   { id: "nav-up",       keys: "↑ / K",label: "이전 태스크",   category: "task" },
   { id: "nav-down",     keys: "↓ / J",label: "다음 태스크",   category: "task" },
-  { id: "expand-task",  keys: "Enter",label: "상세 열기/닫기", category: "task" },
+  { id: "expand-task",  keys: "Space",label: "상세 열기/닫기", category: "task" },
   
   // 앱
   { id: "toggle-sidebar",keys: "⌘+B", label: "사이드바 토글", category: "app" },

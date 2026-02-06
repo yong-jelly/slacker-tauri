@@ -668,27 +668,29 @@ export const MainPage = () => {
           {/* inbox 메뉴: 전체 섹션 표시 */}
           {showAllSections && (
             <>
-              {/* 진행중 섹션 */}
-              <TaskSection
-                title="진행중"
-                count={inProgressTasks.length}
-                tasks={inProgressTasks}
-                selectedTaskId={selectedTaskId}
-                onTaskSelect={handleTaskSelect}
-                onStatusChange={handleStatusChange}
-                onAddMemo={handleAddMemo}
-                onAddNote={handleAddNote}
-                onAddTag={handleAddTag}
-                onRemoveTag={handleRemoveTag}
-                onToggleImportant={handleToggleImportant}
-                onDelete={handleDelete}
-                onTargetDateChange={handleTargetDateChange}
-                onArchive={handleArchive}
-                onExtendTime={handleExtendTime}
-                onTitleChange={handleTitleChange}
-                sectionType="inProgress"
-                focusedTaskId={focusedTaskId}
-              />
+              {/* 진행중 섹션 (항목이 있을 때만 표시) */}
+              {inProgressTasks.length > 0 && (
+                <TaskSection
+                  title="진행중"
+                  count={inProgressTasks.length}
+                  tasks={inProgressTasks}
+                  selectedTaskId={selectedTaskId}
+                  onTaskSelect={handleTaskSelect}
+                  onStatusChange={handleStatusChange}
+                  onAddMemo={handleAddMemo}
+                  onAddNote={handleAddNote}
+                  onAddTag={handleAddTag}
+                  onRemoveTag={handleRemoveTag}
+                  onToggleImportant={handleToggleImportant}
+                  onDelete={handleDelete}
+                  onTargetDateChange={handleTargetDateChange}
+                  onArchive={handleArchive}
+                  onExtendTime={handleExtendTime}
+                  onTitleChange={handleTitleChange}
+                  sectionType="inProgress"
+                  focusedTaskId={focusedTaskId}
+                />
+              )}
 
               {/* 할일 섹션 (일시정지 포함) */}
               <TaskSection

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Task, TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 import { TaskItem } from "./TaskItem";
 import { GripVertical } from "lucide-react";
@@ -57,6 +57,19 @@ export const TaskList = ({
   const handleToggleExpand = useCallback((taskId: string) => {
     setExpandedTaskId((prev) => (prev === taskId ? null : taskId));
   }, []);
+
+  // 외부(단축키)에서의 토글 요청 처리
+  useEffect(() => {
+    const handleExternalToggle = (e: Event) => {
+      const customEvent = e as CustomEvent<{ taskId: string }>;
+      if (customEvent.detail?.taskId) {
+        handleToggleExpand(customEvent.detail.taskId);
+      }
+    };
+
+    window.addEventListener("toggle-task-expand", handleExternalToggle);
+    return () => window.removeEventListener("toggle-task-expand", handleExternalToggle);
+  }, [handleToggleExpand]);
 
   // 드래그 시작
   const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {

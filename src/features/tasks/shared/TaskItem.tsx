@@ -13,6 +13,7 @@ import { TaskItemProgressBg } from "./ui/TaskItemProgressBg";
 import { TaskItemBorderEffect } from "./ui/TaskItemBorderEffect";
 import { TaskItemTitle } from "./ui/TaskItemTitle";
 import { TaskItemControls } from "./ui/TaskItemControls";
+import { TaskItemPausedInfo } from "./ui/TaskItemPausedInfo";
 import { TaskItemUrgencyIcon } from "./ui/TaskItemUrgencyIcon";
 import type { TaskItemProps } from "./types";
 
@@ -58,6 +59,7 @@ export const TaskItem = ({
     editingTitle,
     titleInputRef,
     remainingTimeMs,
+    remainingTimeSeconds,
     progress,
     completedProgress,
     urgencyLevel,
@@ -306,14 +308,16 @@ export const TaskItem = ({
   // 컨테이너 스타일 계산
   const containerClassName = `
     group relative overflow-hidden transition-all rounded-xl ${isInProgress ? "cursor-default" : "cursor-pointer"}
-    border border-white/10
+    border border-white/5
     ${isDetailExpanded
-      ? "bg-[#2d302d] text-gray-100 ring-2 ring-white/20 shadow-xl shadow-black/40"
+      ? "bg-[#2A2D31] text-gray-100 ring-1 ring-white/10 shadow-xl shadow-black/40"
       : isInProgress
-        ? "bg-[#2a2d2a] text-gray-200 border-white/20"
+        ? "bg-[#2A2D31] text-gray-200 border-white/10"
         : isDelayed
-          ? "bg-[#2d2222] text-gray-200 hover:bg-[#3d2d2d] border-red-500/10"
-          : "bg-[#232623] text-gray-200 hover:bg-[#2a2d2a] border-white/5"
+          ? "bg-[#2A2D31] text-gray-200 hover:bg-[#32353B] border-red-500/20"
+          : isPaused
+            ? "bg-[#2A2D31] text-gray-200 hover:bg-[#32353B] border-yellow-500/20"
+            : "bg-[#232629] text-gray-200 hover:bg-[#2A2D31] border-white/5"
     }
   `;
 
@@ -341,159 +345,173 @@ export const TaskItem = ({
 
       <div
         className={`
-          relative z-10 flex flex-col gap-2 px-5 transition-all
+          relative z-10 flex flex-row items-center gap-4 px-5 transition-all
           ${isInProgress ? "py-4" : "py-3"}
         `}
       >
-        {/* 상단: 원형 프로그레스 + 제목 + 컨트롤 버튼 */}
-        <div 
-          className={`flex items-center gap-4 ${isDetailExpanded && !isEditingTitle ? "cursor-default" : ""}`}
-        >
-          {/* 원형 프로그레스 인디케이터 / 체크박스 */}
-          {!isEditingTitle && (
-            <div className="flex-shrink-0" onClick={handleCompleteClick}>
-              {isCompleted ? (
-                <Checkbox
-                  checked={true}
-                  checkedColor="#22C55E"
-                  size="md"
-                  onChange={() => {}}
-                />
-              ) : (
-                <CircularProgress
-                  progress={completedProgress}
-                  size={24}
-                  strokeWidth={2.5}
-                  progressColor={urgencyColors.progress}
-                  isPaused={isPaused}
-                  isNotStarted={isNotStarted}
-                />
-              )}
-            </div>
-          )}
-
-          {/* 제목 및 기대 시간 */}
-          <TaskItemTitle
-            title={task.title}
-            isCompleted={isCompleted}
-            isInProgress={isInProgress}
-            isPaused={isPaused}
-            isDetailExpanded={isDetailExpanded}
-            isEditingTitle={isEditingTitle}
-            editingTitle={editingTitle}
-            expectedDurationText={expectedDurationText}
-            completedProgress={completedProgress}
-            isImportant={task.isImportant}
-            isDelayed={isDelayed}
-            delayDays={delayDays}
-            tags={task.tags}
-            isHovered={isHovered}
-            titleInputRef={titleInputRef}
-            onTitleClick={handleTitleClick}
-            onTitleChange={handleTitleChange}
-            onTitleKeyDown={(e) => {
-              handleTitleKeyDown(e);
-              if (e.key === "Enter" || e.key === "Escape") {
-                setIsEditingTitle(false);
-              }
-            }}
-            onTitleBlur={() => {
-              handleTitleBlur();
-              setIsEditingTitle(false);
-            }}
-            onStartEditing={handleStartEditing}
-          />
-
-          {/* 긴급 아이콘 */}
-          <AnimatePresence>
-            {isInProgress && urgencyLevel !== "normal" && !isDetailExpanded && !isEditingTitle && (
-              <TaskItemUrgencyIcon urgencyLevel={urgencyLevel} />
+        {/* 원형 프로그레스 인디케이터 / 체크박스 */}
+        {!isEditingTitle && (
+          <div className="flex-shrink-0" onClick={handleCompleteClick}>
+            {isCompleted ? (
+              <Checkbox
+                checked={true}
+                checkedColor="#22C55E"
+                size="md"
+                onChange={() => {}}
+              />
+            ) : (
+              <CircularProgress
+                progress={completedProgress}
+                size={24}
+                strokeWidth={2.5}
+                progressColor={urgencyColors.progress}
+                isPaused={isPaused}
+                isNotStarted={isNotStarted}
+              />
             )}
-          </AnimatePresence>
+          </div>
+        )}
 
-          {/* 컨트롤 버튼 */}
-          {!isEditingTitle && (
-            <TaskItemControls
+        <div className="flex flex-col flex-grow gap-2">
+          {/* 상단: 제목 + 컨트롤 버튼 */}
+          <div 
+            className={`flex items-center gap-4 ${isDetailExpanded && !isEditingTitle ? "cursor-default" : ""}`}
+          >
+            {/* 제목 및 기대 시간 */}
+            <TaskItemTitle
+              title={task.title}
               isCompleted={isCompleted}
               isInProgress={isInProgress}
               isPaused={isPaused}
               isDetailExpanded={isDetailExpanded}
-              isImportant={task.isImportant}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onToggleImportant={handleToggleImportant}
-              onDelete={handleDelete}
-              onOpenModal={handleOpenModal}
-            />
-          )}
-        </div>
-
-        {/* 진행 중일 때 타이머 확장 */}
-        <AnimatePresence>
-          {isInProgress && (
-            <TaskTimerSection
-              remainingTimeMs={remainingTimeMs}
-              progress={progress}
-              expectedDurationMinutes={task.expectedDuration ?? 5}
-              urgencyLevel={urgencyLevel}
-              onQuickExtendTime={handleQuickExtendTime}
-              onOpenTimeModal={(e) => handleOpenModal(e, "time")}
-              isHovered={isHovered}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* 일시정지 상태일 때 정보 표시 제거 (이미 진행 시간 정보가 있음) */}
-
-        {/* 상세 정보 확장 (클릭 시) */}
-        <AnimatePresence>
-          {isDetailExpanded && (
-            <TaskDetailExpanded
-              task={task}
-              targetDateText={targetDateText}
-              delayDays={delayDays}
-              isDelayed={isDelayed}
-              latestMemo={latestMemo}
-              memoInput={memoInput}
-              tagInput={tagInput}
-              onMemoInputChange={setMemoInput}
-              onTagInputChange={setTagInput}
-              onAddMemo={handleAddMemo}
-              onAddTag={handleAddTag}
-              onRemoveTag={handleRemoveTag}
-              onPostponeToTomorrow={handlePostponeToTomorrow}
-              onPostponeToToday={handlePostponeToToday}
-              onArchive={handleArchive}
-              onOpenModal={handleOpenModal}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* 더보기 모달 */}
-        <AnimatePresence>
-          {isModalOpen && (
-            <TaskDetailModal
-              task={task}
-              isOpen={isModalOpen}
-              activeTab={modalTab}
-              sortedHistory={sortedHistory}
-              sortedActionHistory={sortedActionHistory}
-              sortedTimeExtensions={sortedTimeExtensions}
+              isEditingTitle={isEditingTitle}
+              editingTitle={editingTitle}
               expectedDurationText={expectedDurationText}
-              memoInput={memoInput}
-              noteContent={noteContent}
-              timeExtendMinutes={timeExtendMinutes}
-              onClose={handleCloseModal}
-              onTabChange={setModalTab}
-              onMemoInputChange={setMemoInput}
-              onNoteContentChange={setNoteContent}
-              onTimeExtendMinutesChange={setTimeExtendMinutes}
-              onAddMemo={handleAddMemo}
-              onAddNote={handleAddNote}
-              onExtendTime={handleExtendTime}
+              completedProgress={completedProgress}
+              isImportant={task.isImportant}
+              isDelayed={isDelayed}
+              delayDays={delayDays}
+              tags={task.tags}
+              isHovered={isHovered}
+              titleInputRef={titleInputRef}
+              onTitleClick={handleTitleClick}
+              onTitleChange={handleTitleChange}
+              onTitleKeyDown={(e) => {
+                handleTitleKeyDown(e);
+                if (e.key === "Enter" || e.key === "Escape") {
+                  setIsEditingTitle(false);
+                }
+              }}
+              onTitleBlur={() => {
+                handleTitleBlur();
+                setIsEditingTitle(false);
+              }}
+              onStartEditing={handleStartEditing}
             />
-          )}
-        </AnimatePresence>
+
+            {/* 긴급 아이콘 */}
+            <AnimatePresence>
+              {isInProgress && urgencyLevel !== "normal" && !isDetailExpanded && !isEditingTitle && (
+                <TaskItemUrgencyIcon urgencyLevel={urgencyLevel} />
+              )}
+            </AnimatePresence>
+
+            {/* 컨트롤 버튼 */}
+            {!isEditingTitle && (
+              <TaskItemControls
+                isCompleted={isCompleted}
+                isInProgress={isInProgress}
+                isPaused={isPaused}
+                isDetailExpanded={isDetailExpanded}
+                isImportant={task.isImportant}
+                onPlay={handlePlay}
+                onPause={handlePause}
+                onToggleImportant={handleToggleImportant}
+                onDelete={handleDelete}
+                onOpenModal={handleOpenModal}
+              />
+            )}
+          </div>
+
+          {/* 진행 중일 때 타이머 확장 */}
+          <AnimatePresence>
+            {isInProgress && (
+              <TaskTimerSection
+                remainingTimeMs={remainingTimeMs}
+                progress={progress}
+                expectedDurationMinutes={task.expectedDuration ?? 5}
+                urgencyLevel={urgencyLevel}
+                onQuickExtendTime={handleQuickExtendTime}
+                onOpenTimeModal={(e) => handleOpenModal(e, "time")}
+                isHovered={isHovered}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* 일시정지 상태일 때 정보 표시 */}
+          <AnimatePresence>
+            {isPaused && !isDetailExpanded && (
+              <TaskItemPausedInfo
+                lastPausedAt={task.lastPausedAt}
+                remainingTimeSeconds={remainingTimeSeconds}
+                expectedDurationMinutes={task.expectedDuration ?? 5}
+                delayDays={delayDays}
+                tags={task.tags}
+                isHovered={isHovered}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* 상세 정보 확장 (클릭 시) */}
+          <AnimatePresence>
+            {isDetailExpanded && (
+              <TaskDetailExpanded
+                task={task}
+                targetDateText={targetDateText}
+                delayDays={delayDays}
+                isDelayed={isDelayed}
+                latestMemo={latestMemo}
+                memoInput={memoInput}
+                tagInput={tagInput}
+                onMemoInputChange={setMemoInput}
+                onTagInputChange={setTagInput}
+                onAddMemo={handleAddMemo}
+                onAddTag={handleAddTag}
+                onRemoveTag={handleRemoveTag}
+                onPostponeToTomorrow={handlePostponeToTomorrow}
+                onPostponeToToday={handlePostponeToToday}
+                onArchive={handleArchive}
+                onOpenModal={handleOpenModal}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* 더보기 모달 */}
+          <AnimatePresence>
+            {isModalOpen && (
+              <TaskDetailModal
+                task={task}
+                isOpen={isModalOpen}
+                activeTab={modalTab}
+                sortedHistory={sortedHistory}
+                sortedActionHistory={sortedActionHistory}
+                sortedTimeExtensions={sortedTimeExtensions}
+                expectedDurationText={expectedDurationText}
+                memoInput={memoInput}
+                noteContent={noteContent}
+                timeExtendMinutes={timeExtendMinutes}
+                onClose={handleCloseModal}
+                onTabChange={setModalTab}
+                onMemoInputChange={setMemoInput}
+                onNoteContentChange={setNoteContent}
+                onTimeExtendMinutesChange={setTimeExtendMinutes}
+                onAddMemo={handleAddMemo}
+                onAddNote={handleAddNote}
+                onExtendTime={handleExtendTime}
+              />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </motion.div>
   );
