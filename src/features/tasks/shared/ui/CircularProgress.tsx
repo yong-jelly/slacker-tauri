@@ -28,7 +28,6 @@ export const CircularProgress = ({
 
   const getProgressColor = () => {
     if (isCompleted) return "#22C55E";
-    if (isPaused) return "#FBBF24";
     if (isNotStarted && progress === 0) return "rgba(107, 114, 128, 0.5)";
     return progressColor;
   };
@@ -65,7 +64,7 @@ export const CircularProgress = ({
           transition={{ duration: 0.5, ease: "easeOut" }}
         />
       </svg>
-      {!isNotStarted && !isPaused && progress > 0 && progress < 1 && (
+      {!isNotStarted && progress > 0 && progress < 1 && (
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           initial={{ opacity: 0 }}
@@ -77,16 +76,6 @@ export const CircularProgress = ({
           >
             {Math.round(progress * 100)}
           </span>
-        </motion.div>
-      )}
-      {isPaused && (
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center"
-          animate={{ opacity: [1, 0.4, 1] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-        >
-          <div className="w-1 h-2 bg-yellow-500 rounded-sm mx-[1px]" />
-          <div className="w-1 h-2 bg-yellow-500 rounded-sm mx-[1px]" />
         </motion.div>
       )}
     </div>

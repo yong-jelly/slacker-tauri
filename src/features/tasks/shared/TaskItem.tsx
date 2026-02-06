@@ -13,7 +13,6 @@ import { TaskItemProgressBg } from "./ui/TaskItemProgressBg";
 import { TaskItemBorderEffect } from "./ui/TaskItemBorderEffect";
 import { TaskItemTitle } from "./ui/TaskItemTitle";
 import { TaskItemControls } from "./ui/TaskItemControls";
-import { TaskItemPausedInfo } from "./ui/TaskItemPausedInfo";
 import { TaskItemUrgencyIcon } from "./ui/TaskItemUrgencyIcon";
 import type { TaskItemProps } from "./types";
 
@@ -59,7 +58,6 @@ export const TaskItem = ({
     editingTitle,
     titleInputRef,
     remainingTimeMs,
-    remainingTimeSeconds,
     progress,
     completedProgress,
     urgencyLevel,
@@ -125,12 +123,11 @@ export const TaskItem = ({
 
   // 로컬 핸들러들
   const handleRowClick = useCallback((e: React.MouseEvent) => {
-    if (isInProgress) return;
     // 외부 클릭 감지와의 충돌 방지를 위해 이벤트 전파 중지
     e.stopPropagation();
     // 항상 토글 (열려있으면 닫고, 닫혀있으면 열기)
     onToggleExpand?.();
-  }, [isInProgress, onToggleExpand]);
+  }, [onToggleExpand]);
 
   const handleCompleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -316,9 +313,7 @@ export const TaskItem = ({
         ? "bg-[#2a2d2a] text-gray-200 border-white/20"
         : isDelayed
           ? "bg-[#2d2222] text-gray-200 hover:bg-[#3d2d2d] border-red-500/10"
-          : isPaused
-            ? "bg-[#2d2c22] text-gray-200 hover:bg-[#3d3b2d] border-yellow-500/10"
-            : "bg-[#232623] text-gray-200 hover:bg-[#2a2d2a] border-white/5"
+          : "bg-[#232623] text-gray-200 hover:bg-[#2a2d2a] border-white/5"
     }
   `;
 
@@ -448,23 +443,11 @@ export const TaskItem = ({
           )}
         </AnimatePresence>
 
-        {/* 일시정지 상태일 때 정보 표시 */}
-        <AnimatePresence>
-          {isPaused && !isDetailExpanded && (
-            <TaskItemPausedInfo
-              lastPausedAt={task.lastPausedAt}
-              remainingTimeSeconds={remainingTimeSeconds}
-              expectedDurationMinutes={task.expectedDuration ?? 5}
-              delayDays={delayDays}
-              tags={task.tags}
-              isHovered={isHovered}
-            />
-          )}
-        </AnimatePresence>
+        {/* 일시정지 상태일 때 정보 표시 제거 (이미 진행 시간 정보가 있음) */}
 
         {/* 상세 정보 확장 (클릭 시) */}
         <AnimatePresence>
-          {isDetailExpanded && !isInProgress && (
+          {isDetailExpanded && (
             <TaskDetailExpanded
               task={task}
               targetDateText={targetDateText}
