@@ -22,7 +22,10 @@ export const ShortcutHintBar = ({ activeMenuId }: ShortcutHintBarProps) => {
     }
 
     if (["completed", "archive"].includes(activeMenuId)) {
-      return commonHints;
+      return [
+        { keys: "Space", label: "상세" },
+        ...commonHints,
+      ];
     }
 
     // Default (starred, overdue, etc.)

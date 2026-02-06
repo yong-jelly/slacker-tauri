@@ -84,13 +84,13 @@ export const Sidebar = ({ isOpen, activeItemId = "inbox", counts, onItemSelect }
         },
         {
           id: "overdue",
-          label: "지연됨",
+          label: "지연",
           icon: <AlertTriangle className="w-4 h-4" />,
           count: counts?.overdue,
         },
         {
           id: "archive",
-          label: "보관함",
+          label: "보관",
           icon: <Archive className="w-4 h-4" />,
           count: counts?.archive,
         },

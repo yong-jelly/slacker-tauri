@@ -1,9 +1,9 @@
 import { motion } from "motion/react";
 import { 
   Calendar, ArrowRight, Archive, Hash, Send, 
-  MessageSquare, AlertTriangle
+  MessageSquare, AlertTriangle, CheckCircle2
 } from "lucide-react";
-import { Task, TaskMemo } from "@entities/task";
+import { Task, TaskMemo, TaskStatus } from "@entities/task";
 import { formatRelativeTime } from "../lib/timeFormat";
 import type { ModalTabType } from "../types";
 
@@ -53,60 +53,75 @@ export const TaskDetailExpanded = ({
       className="overflow-hidden"
     >
       <div className="pt-4 mt-3 border-t border-gray-600/30 space-y-4">
-        {/* 목표일 및 지연 알림 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* 목표일 카드 */}
-            <div className={`
-              flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs
-              ${isDelayed 
-                ? "bg-red-500/15 border border-red-500/30" 
-                : targetDateText === "오늘" 
-                  ? "bg-blue-500/10 border border-blue-500/30"
-                  : "bg-gray-700/30 border border-gray-600/30"
-              }
-            `}>
-              {isDelayed ? (
-                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              ) : (
-                <Calendar className="w-3.5 h-3.5 text-gray-400" />
-              )}
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-400">목표일</span>
-                <span className={`font-medium ${
-                  isDelayed ? "text-red-400" :
-                  targetDateText === "오늘" ? "text-blue-400" : "text-gray-300"
-                }`}>
-                  {targetDateText}
-                </span>
-                {isDelayed && (
-                  <span className="text-red-400 text-[10px]">
-                    ({delayDays}일 지연)
+        {/* 완료일 표시 (완료 상태일 때) */}
+        {(task.status === "completed" || task.status === TaskStatus.COMPLETED) && task.completedAt && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs bg-green-500/10 border border-green-500/20 w-fit">
+            <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-400">완료일</span>
+              <span className="font-medium text-green-500">
+                {formatRelativeTime(task.completedAt)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* 목표일 및 지연 알림 (완료 상태가 아닐 때만 표시) */}
+        {task.status !== "completed" && task.status !== TaskStatus.COMPLETED && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* 목표일 카드 */}
+              <div className={`
+                flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs
+                ${isDelayed 
+                  ? "bg-red-500/15 border border-red-500/30" 
+                  : targetDateText === "오늘" 
+                    ? "bg-blue-500/10 border border-blue-500/30"
+                    : "bg-gray-700/30 border border-gray-600/30"
+                }
+              `}>
+                {isDelayed ? (
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                ) : (
+                  <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                )}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-gray-400">목표일</span>
+                  <span className={`font-medium ${
+                    isDelayed ? "text-red-400" :
+                    targetDateText === "오늘" ? "text-blue-400" : "text-gray-300"
+                  }`}>
+                    {targetDateText}
                   </span>
+                  {isDelayed && (
+                    <span className="text-red-400 text-[10px]">
+                      ({delayDays}일 지연)
+                    </span>
+                  )}
+                </div>
+                {/* 내일로/오늘로 버튼: 지연 시 오늘로, 오늘이면 내일로, 내일이면 숨김 */}
+                {(isDelayed || targetDateText !== "내일") && (
+                  <button
+                    onClick={isDelayed ? onPostponeToToday : onPostponeToTomorrow}
+                    className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-600/30 transition-colors ml-1"
+                  >
+                    <ArrowRight className="w-2.5 h-2.5" />
+                    {isDelayed ? "오늘로" : "내일로"}
+                  </button>
                 )}
               </div>
-              {/* 내일로/오늘로 버튼: 지연 시 오늘로, 오늘이면 내일로, 내일이면 숨김 */}
-              {(isDelayed || targetDateText !== "내일") && (
-                <button
-                  onClick={isDelayed ? onPostponeToToday : onPostponeToTomorrow}
-                  className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-600/30 transition-colors ml-1"
-                >
-                  <ArrowRight className="w-2.5 h-2.5" />
-                  {isDelayed ? "오늘로" : "내일로"}
-                </button>
-              )}
+              
+              {/* 보관함 */}
+              <button
+                onClick={onArchive}
+                className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300 px-2.5 py-1.5 rounded-lg hover:bg-gray-600/30 transition-colors border border-transparent hover:border-gray-600/50"
+              >
+                <Archive className="w-3 h-3" />
+                보관함
+              </button>
             </div>
-            
-            {/* 보관함 */}
-            <button
-              onClick={onArchive}
-              className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300 px-2.5 py-1.5 rounded-lg hover:bg-gray-600/30 transition-colors border border-transparent hover:border-gray-600/50"
-            >
-              <Archive className="w-3 h-3" />
-              보관함
-            </button>
           </div>
-        </div>
+        )}
 
 
         {/* 태그 섹션 */}

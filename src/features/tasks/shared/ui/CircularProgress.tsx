@@ -27,8 +27,8 @@ export const CircularProgress = ({
   const center = size / 2;
 
   const getProgressColor = () => {
-    if (isCompleted) return "#22C55E";
-    if (isNotStarted && progress === 0) return "rgba(107, 114, 128, 0.5)";
+    if (isCompleted) return "rgba(34, 197, 94, 0.45)";
+    if (isNotStarted && progress === 0) return "rgba(107, 114, 128, 0.25)";
     return progressColor;
   };
 

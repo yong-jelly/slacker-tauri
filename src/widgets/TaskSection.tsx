@@ -130,7 +130,7 @@ export const TaskSection = ({
       </div>
 
       {/* Task 추가 폼 (할일 섹션에만 표시) */}
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {showAddTaskForm && onAddTask && (
           <AddTaskForm
             onSubmit={onAddTask}

@@ -2,19 +2,14 @@ import { Checkbox } from "@shared/ui";
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useCallback, useEffect, useRef } from "react";
 
-import { formatDurationWithSpent, formatTargetDate, getDelayDays } from "./lib/timeFormat";
+import { formatDurationWithSpent, formatTargetDate, getDelayDays, formatRelativeTime, formatTimeMs } from "./lib/timeFormat";
 import { useTaskItem } from "./hooks/useTaskItem";
-import { useBorderFlash } from "./hooks/useBorderFlash";
 import { CircularProgress } from "./ui/CircularProgress";
-import { TaskTimerSection } from "./ui/TaskTimerSection";
 import { TaskDetailExpanded } from "./ui/TaskDetailExpanded";
 import { TaskDetailModal } from "./ui/TaskDetailModal";
-import { TaskItemProgressBg } from "./ui/TaskItemProgressBg";
-import { TaskItemBorderEffect } from "./ui/TaskItemBorderEffect";
 import { TaskItemTitle } from "./ui/TaskItemTitle";
 import { TaskItemControls } from "./ui/TaskItemControls";
 import { TaskItemPausedInfo } from "./ui/TaskItemPausedInfo";
-import { TaskItemUrgencyIcon } from "./ui/TaskItemUrgencyIcon";
 import type { TaskItemProps } from "./types";
 
 export type { TaskItemProps };
@@ -110,9 +105,6 @@ export const TaskItem = ({
     onTitleChange,
   });
 
-  // 외곽 라인 플래시 이펙트
-  const { showBorderFlash } = useBorderFlash({ isActive: isInProgress });
-
   // 계산된 값들 - DB 기반 남은 시간으로 소비시간/전체시간 형식 표시
   const expectedDurationText = formatDurationWithSpent(
     task.expectedDuration ?? 5,
@@ -122,6 +114,9 @@ export const TaskItem = ({
   const targetDateText = formatTargetDate(targetDate);
   const delayDays = getDelayDays(targetDate);
   const isDelayed = delayDays > 0 && !isCompleted;
+  
+  // 완료일 텍스트 (방금, ~초 전 등)
+  const completedAtText = task.completedAt ? formatRelativeTime(task.completedAt) : "";
 
   // 로컬 핸들러들
   const handleRowClick = useCallback((e: React.MouseEvent) => {
@@ -305,20 +300,15 @@ export const TaskItem = ({
     }
   }, [isEditingTitle]);
 
-  // 컨테이너 스타일 계산
+  // 컨테이너 스타일 계산 (minimal-design.mdc 준수)
   const containerClassName = `
-    group relative overflow-hidden transition-all rounded-xl ${isInProgress ? "cursor-default" : "cursor-pointer"}
-    border border-white/5
+    group relative overflow-hidden transition-all duration-150 ease-out
+    ${isInProgress ? "cursor-default" : "cursor-pointer"}
     ${isDetailExpanded
-      ? "bg-[#2A2D31] text-gray-100 ring-1 ring-white/10 shadow-xl shadow-black/40"
-      : isInProgress
-        ? "bg-[#2A2D31] text-gray-200 border-white/10"
-        : isDelayed
-          ? "bg-[#2A2D31] text-gray-200 hover:bg-[#32353B] border-red-500/20"
-          : isPaused
-            ? "bg-[#2A2D31] text-gray-200 hover:bg-[#32353B] border-yellow-500/20"
-            : "bg-[#232629] text-gray-200 hover:bg-[#2A2D31] border-white/5"
+      ? "bg-white/[0.05] text-gray-100 shadow-lg shadow-black/20 ring-1 ring-white/10"
+      : "bg-white/[0.02] text-gray-200 hover:bg-white/[0.06]"
     }
+    border border-white/[0.05] rounded-xl mb-2 last:mb-0
   `;
 
   return (
@@ -329,28 +319,30 @@ export const TaskItem = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={containerClassName}
-      initial={{ opacity: 0, y: 10 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
     >
-      {/* 프로그레스 바 배경 (진행 중일 때만) */}
+      {/* 진행 중일 때 좌측 액센트 바 */}
       {isInProgress && (
-        <TaskItemProgressBg progress={progress} bgColor={urgencyColors.bg} />
+        <motion.div
+          className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full"
+          style={{ backgroundColor: urgencyColors.progress }}
+          initial={{ scaleY: 0 }}
+          animate={{ scaleY: 1 }}
+          transition={{ duration: 0.3 }}
+        />
       )}
-
-      {/* 진행 중일 때만 외곽 라인 플래시 이펙트 (지연된 태스크는 내부 텍스트로만 표시) */}
-      <AnimatePresence>
-        {isInProgress && showBorderFlash && <TaskItemBorderEffect />}
-      </AnimatePresence>
 
       <div
         className={`
-          relative z-10 flex flex-row items-center gap-4 px-5 transition-all
-          ${isInProgress ? "py-4" : "py-3"}
+          relative z-10 flex flex-row items-center gap-3 px-4 transition-all
+          py-2.5
+          min-h-[44px]
         `}
       >
         {/* 원형 프로그레스 인디케이터 / 체크박스 */}
-        {!isEditingTitle && (
+        {!isEditingTitle && !isDetailExpanded && (
           <div className="flex-shrink-0" onClick={handleCompleteClick}>
             {isCompleted ? (
               <Checkbox
@@ -406,18 +398,21 @@ export const TaskItem = ({
                 handleTitleBlur();
                 setIsEditingTitle(false);
               }}
-              onStartEditing={handleStartEditing}
-            />
+            onStartEditing={handleStartEditing}
+          />
 
-            {/* 긴급 아이콘 */}
-            <AnimatePresence>
-              {isInProgress && urgencyLevel !== "normal" && !isDetailExpanded && !isEditingTitle && (
-                <TaskItemUrgencyIcon urgencyLevel={urgencyLevel} />
-              )}
-            </AnimatePresence>
+          {/* 완료일 표시 (완료 상태일 때) */}
+          {isCompleted && !isDetailExpanded && (
+            <div className="flex-shrink-0 ml-auto">
+              <span className="text-[11px] text-gray-500 font-medium">
+                {completedAtText} 완료
+              </span>
+            </div>
+          )}
 
-            {/* 컨트롤 버튼 */}
-            {!isEditingTitle && (
+          {/* 컨트롤 버튼 */}
+          {!isEditingTitle && (
+            <div className={`transition-opacity duration-200 ${isHovered ? "opacity-100" : "opacity-0"}`}>
               <TaskItemControls
                 isCompleted={isCompleted}
                 isInProgress={isInProgress}
@@ -430,21 +425,53 @@ export const TaskItem = ({
                 onDelete={handleDelete}
                 onOpenModal={handleOpenModal}
               />
-            )}
+            </div>
+          )}
           </div>
 
-          {/* 진행 중일 때 타이머 확장 */}
+          {/* 진행 중일 때 인라인 타이머 */}
           <AnimatePresence>
             {isInProgress && (
-              <TaskTimerSection
-                remainingTimeMs={remainingTimeMs}
-                progress={progress}
-                expectedDurationMinutes={task.expectedDuration ?? 5}
-                urgencyLevel={urgencyLevel}
-                onQuickExtendTime={handleQuickExtendTime}
-                onOpenTimeModal={(e) => handleOpenModal(e, "time")}
-                isHovered={isHovered}
-              />
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-1 rounded-full bg-[#FF6B00] animate-pulse" />
+                    <span
+                      className={`text-[11px] font-mono font-medium tabular-nums ${
+                        urgencyLevel === "critical"
+                          ? "text-red-400"
+                          : urgencyLevel === "warning"
+                            ? "text-yellow-400"
+                            : "text-gray-400"
+                      }`}
+                    >
+                      {formatTimeMs(remainingTimeMs)}
+                    </span>
+                  </div>
+                  
+                  <motion.div
+                    className="flex items-center gap-1"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: isHovered ? 1 : 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {[1, 5].map((min) => (
+                      <button
+                        key={min}
+                        onClick={(e) => handleQuickExtendTime(e, min)}
+                        className="px-1.5 py-0.5 text-[9px] rounded bg-white/[0.03] hover:bg-white/[0.08] text-gray-500 hover:text-gray-300 transition-colors border border-white/[0.03]"
+                      >
+                        +{min}m
+                      </button>
+                    ))}
+                  </motion.div>
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
 

@@ -1,11 +1,12 @@
 import { Task, TaskStatus, TaskMemo, TaskNote, TimeExtensionHistory } from "@entities/task";
 
 /** 태스크 정렬 기준 */
-export type SortType = "created" | "remainingTime" | "title" | "custom";
+export type SortType = "created" | "completed" | "remainingTime" | "title" | "custom";
 
 /** 정렬 옵션 레이블 매핑 */
 export const SORT_LABELS: Record<SortType, string> = {
   created: "생성일",
+  completed: "완료일",
   remainingTime: "남은시간",
   title: "이름순",
   custom: "사용자",

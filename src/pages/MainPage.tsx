@@ -141,6 +141,11 @@ export const MainPage = () => {
         case "created":
           // 최신 생성일순 (내림차순)
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case "completed":
+          // 최신 완료일순 (내림차순)
+          const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+          const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+          return timeB - timeA;
         case "remainingTime":
           // 남은 시간이 많은 순 (내림차순)
           const durationA = a.expectedDuration ?? 0;
@@ -163,15 +168,18 @@ export const MainPage = () => {
 
   // 정렬된 필터링 태스크
   const sortedFilteredTasks = useMemo(() => {
+    if (activeMenuId === "completed") {
+      return sortTasks(filteredTasks, "completed", []);
+    }
     return sortTasks(filteredTasks, filteredSortType, customOrderFiltered);
-  }, [filteredTasks, filteredSortType, customOrderFiltered, sortTasks]);
+  }, [filteredTasks, filteredSortType, customOrderFiltered, sortTasks, activeMenuId]);
 
-  // 정렬된 통합 할일 목록 (일시정지 + 할일)
+  // 정렬된 통합 할일 목록 (진행중 + 일시정지 + 할일)
   const sortedInboxTasks = useMemo(() => {
-    const inboxAndPausedTasks = tasks.filter(
-      (t) => t.status === TaskStatus.INBOX || t.status === TaskStatus.PAUSED
+    const inboxAndActiveTasks = tasks.filter(
+      (t) => t.status === TaskStatus.INBOX || t.status === TaskStatus.PAUSED || t.status === TaskStatus.IN_PROGRESS
     );
-    return sortTasks(inboxAndPausedTasks, inboxSortType, customOrderInbox);
+    return sortTasks(inboxAndActiveTasks, inboxSortType, customOrderInbox);
   }, [tasks, inboxSortType, customOrderInbox, sortTasks]);
 
   // 드래그앤드롭 순서 변경 핸들러
@@ -640,8 +648,8 @@ export const MainPage = () => {
     starred: "중요",
     today: "오늘",
     tomorrow: "내일",
-    overdue: "지연됨",
-    archive: "보관함",
+    overdue: "지연",
+    archive: "보관",
     settings: "설정",
   };
 
@@ -668,8 +676,8 @@ export const MainPage = () => {
           {/* inbox 메뉴: 전체 섹션 표시 */}
           {showAllSections && (
             <>
-              {/* 진행중 섹션 (항목이 있을 때만 표시) */}
-              {inProgressTasks.length > 0 && (
+              {/* 진행중 섹션 제거 - 할일 목록에서 직접 진행됨 */}
+              {/* {inProgressTasks.length > 0 && (
                 <TaskSection
                   title="진행중"
                   count={inProgressTasks.length}
@@ -690,9 +698,9 @@ export const MainPage = () => {
                   sectionType="inProgress"
                   focusedTaskId={focusedTaskId}
                 />
-              )}
+              )} */}
 
-              {/* 할일 섹션 (일시정지 포함) */}
+              {/* 할일 섹션 (진행중, 일시정지 포함) */}
               <TaskSection
                 title="할일"
                 count={sortedInboxTasks.length}
@@ -747,9 +755,9 @@ export const MainPage = () => {
               onCloseAddTask={handleCloseAddTask}
               initialTargetDate={getInitialTargetDate()}
               sectionType={isCompletedView ? "completed" : isArchiveView ? "completed" : "inbox"}
-              sortType={filteredSortType}
-              onSortChange={setFilteredSortType}
-              onTasksReorder={handleFilteredReorder}
+              sortType={isCompletedView ? "completed" : filteredSortType}
+              onSortChange={isCompletedView ? undefined : setFilteredSortType}
+              onTasksReorder={isCompletedView ? undefined : handleFilteredReorder}
               focusedTaskId={focusedTaskId}
             />
           )}

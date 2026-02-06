@@ -23,24 +23,24 @@ export const getUrgencyColors = (urgencyLevel: UrgencyLevel): UrgencyColors => {
   switch (urgencyLevel) {
     case "critical":
       return { 
-        bg: "rgba(239, 68, 68, 0.2)", 
-        border: "#EF4444", 
-        glow: "#EF4444", 
-        progress: "#EF4444" 
+        bg: "rgba(239, 68, 68, 0.1)", 
+        border: "rgba(239, 68, 68, 0.3)", 
+        glow: "rgba(239, 68, 68, 0.15)", 
+        progress: "rgba(239, 68, 68, 0.4)" 
       };
     case "warning":
       return { 
-        bg: "rgba(251, 191, 36, 0.15)", 
-        border: "#FBBF24", 
-        glow: "#FBBF24", 
-        progress: "#FBBF24" 
+        bg: "rgba(251, 191, 36, 0.08)", 
+        border: "rgba(251, 191, 36, 0.25)", 
+        glow: "rgba(251, 191, 36, 0.1)", 
+        progress: "rgba(251, 191, 36, 0.35)" 
       };
     default:
       return { 
-        bg: "rgba(255, 107, 0, 0.1)", 
-        border: "#FF6B00", 
-        glow: "#FF6B00", 
-        progress: "#FF6B00" 
+        bg: "rgba(255, 107, 0, 0.05)", 
+        border: "rgba(255, 107, 0, 0.25)", 
+        glow: "rgba(255, 107, 0, 0.1)", 
+        progress: "rgba(255, 107, 0, 0.35)" 
       };
   }
 };

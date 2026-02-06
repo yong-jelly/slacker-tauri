@@ -89,7 +89,21 @@ export const TaskItemControls = ({
     );
   }
 
-  // 기본 상태: 재생 버튼 제거 (단축키 Space로 대체)
-  return null;
+  // 기본 상태: 마우스 오버 시 '실행' 텍스트 버튼 노출
+  return (
+    <div className="flex items-center">
+      <motion.button
+        initial={{ opacity: 0, x: 5 }}
+        whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 107, 0, 0.15)" }}
+        animate={{ opacity: 1, x: 0 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={onPlay}
+        className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FF6B00]/10 border border-[#FF6B00]/20 transition-all group/play"
+      >
+        {/* <Play className="w-3.5 h-3.5 text-[#FF6B00] fill-[#FF6B00]/20 group-hover/play:fill-[#FF6B00]" /> */}
+        <span className="text-[12px] font-medium text-[#FF6B00]">시작</span>
+      </motion.button>
+    </div>
+  );
 };
 
