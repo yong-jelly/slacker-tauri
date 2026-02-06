@@ -79,8 +79,8 @@ export const TaskItemTitle = ({
       ) : (
         <span
           onClick={handleTitleSpanClick}
-          className={`text-sm font-medium truncate pointer-events-auto ${
-            isCompleted ? "line-through text-gray-500" : ""
+          className={`text-sm truncate pointer-events-auto ${
+            isCompleted ? "text-white font-semibold" : "font-medium text-gray-200"
           } ${
             isDetailExpanded && !isInProgress && !isCompleted
               ? "cursor-text underline decoration-gray-500/50 hover:decoration-gray-400/70"
@@ -91,8 +91,8 @@ export const TaskItemTitle = ({
         </span>
       )}
 
-      {/* 펼침 상태일 때 중앙에 예상시간 표시 */}
-      {isDetailExpanded && !isInProgress && !isEditingTitle && (
+      {/* 펼침 상태일 때 중앙에 예상시간 표시 (완료 상태가 아닐 때만) */}
+      {isDetailExpanded && !isInProgress && !isCompleted && !isEditingTitle && (
         <div className="flex items-center gap-1.5 flex-shrink-0 pointer-events-auto">
           <Clock className="w-3 h-3 text-gray-500" />
           <span className="text-xs text-gray-400">
@@ -118,11 +118,11 @@ export const TaskItemTitle = ({
             <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
           )}
           
-          {!isPaused && completedProgress > 0 && (
+          {/* {!isPaused && completedProgress > 0 && (
             <span className="text-[10px] ml-0.5 text-[#FF6B00]">
               • {Math.round(completedProgress * 100)}%
             </span>
-          )}
+          )} */}
           
           {isDelayed && (
             <span className="flex items-center gap-0.5 text-[10px] ml-0.5 text-red-400">

@@ -64,7 +64,7 @@ export const CircularProgress = ({
           transition={{ duration: 0.5, ease: "easeOut" }}
         />
       </svg>
-      {!isNotStarted && progress > 0 && progress < 1 && (
+      {/* {!isNotStarted && progress > 0 && progress < 1 && (
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           initial={{ opacity: 0 }}
@@ -77,7 +77,7 @@ export const CircularProgress = ({
             {Math.round(progress * 100)}
           </span>
         </motion.div>
-      )}
+      )} */}
     </div>
   );
 };
